@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  postgres-auth:
+    image: postgres:16-alpine 
+    container_name: postgres-auth
+    environment:
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+volumes:
+  postgres-auth-data:
+
+networks:
+  supai-network:
