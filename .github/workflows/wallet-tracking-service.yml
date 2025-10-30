@@ -1,0 +1,46 @@
+name: Wallet Tracking Service CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/wallet-tracking/**'
+      - '.github/workflows/wallet-tracking-service.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/wallet-tracking/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'services/wallet-tracking/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: services/wallet-tracking
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: services/wallet-tracking
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: services/wallet-tracking
+        run: npm run build --if-present
+
+      - name: Run tests
+        working-directory: services/wallet-tracking
+        run: npm test --if-present

@@ -1,0 +1,46 @@
+name: Portfolio Service CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/portfolio/**'
+      - '.github/workflows/portfolio-service.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/portfolio/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'services/portfolio/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: services/portfolio
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: services/portfolio
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: services/portfolio
+        run: npm run build --if-present
+
+      - name: Run tests
+        working-directory: services/portfolio
+        run: npm test --if-present

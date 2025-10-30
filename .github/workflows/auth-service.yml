@@ -1,0 +1,61 @@
+name: Auth Service CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/auth/**'
+      - '.github/workflows/auth-service.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/auth/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: auth-user
+          POSTGRES_PASSWORD: auth-password
+          POSTGRES_DB: auth-db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'services/auth/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: services/auth
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: services/auth
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: services/auth
+        run: npm run build --if-present
+
+      - name: Run tests
+        working-directory: services/auth
+        run: npm test --if-present

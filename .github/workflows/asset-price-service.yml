@@ -1,0 +1,46 @@
+name: Asset Price Service CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/asset-price/**'
+      - '.github/workflows/asset-price-service.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/asset-price/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'services/asset-price/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: services/asset-price
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: services/asset-price
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: services/asset-price
+        run: npm run build --if-present
+
+      - name: Run tests
+        working-directory: services/asset-price
+        run: npm test --if-present

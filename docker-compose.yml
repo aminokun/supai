@@ -15,8 +15,93 @@ services:
       - supai-network
     restart: unless-stopped
 
+  postgres-notification:
+    image: postgres:16-alpine
+    container_name: postgres-notification
+    environment:
+      POSTGRES_USER: ${NOTIFICATION_DB_USER}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  postgres-asset-price:
+    image: postgres:16-alpine
+    container_name: postgres-asset-price
+    environment:
+      POSTGRES_USER: ${ASSET_PRICE_DB_USER}
+      POSTGRES_PASSWORD: ${ASSET_PRICE_DB_PASSWORD}
+      POSTGRES_DB: ${ASSET_PRICE_DB_NAME}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-asset-price-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  postgres-wallet-tracking:
+    image: postgres:16-alpine
+    container_name: postgres-wallet-tracking
+    environment:
+      POSTGRES_USER: ${WALLET_TRACKING_DB_USER}
+      POSTGRES_PASSWORD: ${WALLET_TRACKING_DB_PASSWORD}
+      POSTGRES_DB: ${WALLET_TRACKING_DB_NAME}
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-wallet-tracking-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  postgres-portfolio:
+    image: postgres:16-alpine
+    container_name: postgres-portfolio
+    environment:
+      POSTGRES_USER: ${PORTFOLIO_DB_USER}
+      POSTGRES_PASSWORD: ${PORTFOLIO_DB_PASSWORD}
+      POSTGRES_DB: ${PORTFOLIO_DB_NAME}
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-portfolio-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: supai-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"      # AMQP port (for services)
+      - "15672:15672"    # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 volumes:
   postgres-auth-data:
+  postgres-notification-data:
+  postgres-asset-price-data:
+  postgres-wallet-tracking-data:
+  postgres-portfolio-data:
+  rabbitmq-data:
 
 networks:
   supai-network:
