@@ -23,9 +23,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: auth-user
-          POSTGRES_PASSWORD: auth-password
-          POSTGRES_DB: auth-db
+          POSTGRES_USER: ${{ secrets.AUTH_DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.AUTH_DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.AUTH_DB_NAME }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -33,6 +33,12 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://${{ secrets.AUTH_DB_USER }}:${{ secrets.AUTH_DB_PASSWORD }}@localhost:5432/${{ secrets.AUTH_DB_NAME }}?schema=public
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+      TRUSTED_ORIGINS: ${{ secrets.TRUSTED_ORIGINS }}
 
     steps:
       - uses: actions/checkout@v4

@@ -22,6 +22,10 @@ app.get("/", (req: any, res: any) => {
   res.send("Yo");
 });
 
+app.get("/health", (req: any, res: any) => {
+  res.json({ status: "ok", service: "auth-service" });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port:${PORT}`);
 });
