@@ -6,14 +6,14 @@ on:
       - main
       - develop
     paths:
-      - 'services/auth/**'
-      - '.github/workflows/auth-service.yml'
+      - "services/auth/**"
+      - ".github/workflows/auth-service.yml"
   pull_request:
     branches:
       - main
       - develop
     paths:
-      - 'services/auth/**'
+      - "services/auth/**"
 
 jobs:
   test-and-build:
@@ -37,8 +37,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://${{ secrets.AUTH_DB_USER }}:${{ secrets.AUTH_DB_PASSWORD }}@localhost:5432/${{ secrets.AUTH_DB_NAME }}?schema=public
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-      BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-      TRUSTED_ORIGINS: ${{ secrets.TRUSTED_ORIGINS }}
+      BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
+      TRUSTED_ORIGINS: ${{ vars.TRUSTED_ORIGINS }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,9 +46,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'services/auth/package-lock.json'
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "services/auth/package-lock.json"
 
       - name: Install dependencies
         working-directory: services/auth
