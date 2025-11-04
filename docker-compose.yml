@@ -1,9 +1,6 @@
-version: '3.8'
+version: "3.8"
 services:
-  # ============================================================
   # Databases
-  # ============================================================
-
   postgres-auth:
     image: postgres:16-alpine
     container_name: postgres-auth
@@ -131,8 +128,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     ports:
-      - "5672:5672"      # AMQP port (for services)
-      - "15672:15672"    # Management UI
+      - "5672:5672" # AMQP port (for services)
+      - "15672:15672" # Management UI
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -144,10 +141,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # ============================================================
   # Microservices
-  # ============================================================
-
   auth:
     build:
       context: ./services/auth
@@ -169,7 +163,15 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -196,7 +198,15 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3007/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3007/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -223,7 +233,15 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3002/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -252,7 +270,15 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3003/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -279,7 +305,15 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3004/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3004/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -306,16 +340,21 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3005/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3005/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
-  # ============================================================
   # API Gateway
-  # ============================================================
-
   api-gateway:
     build:
       context: ./traefik
@@ -341,16 +380,21 @@ services:
       - supai-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
-  # ============================================================
   # Frontend Services
-  # ============================================================
-
   frontend:
     build:
       context: ./frontend/supai

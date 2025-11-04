@@ -72,6 +72,7 @@ jobs:
           npm install -g snyk
           snyk auth ${{ secrets.SNYK_TOKEN }}
           snyk test --severity-threshold=high
+          snyk monitor --project-name="supai-auth"
 
       - name: Run tests
         working-directory: services/auth
