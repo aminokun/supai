@@ -1,0 +1,67 @@
+name: API Gateway CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'traefik/**'
+      - '.github/workflows/api-gateway.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'traefik/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'traefik/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: traefik
+        run: npm ci
+
+      - name: Run TypeScript check
+        working-directory: traefik
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: traefik
+        run: npm run build --if-present
+
+      - name: Run Snyk security scan
+        working-directory: traefik
+        run: |
+          npm install -g snyk
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk test --severity-threshold=high
+
+      - name: Run tests
+        working-directory: traefik
+        run: npm test --if-present
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/supai-api-gateway:${{ github.sha }} \
+            -t ghcr.io/${{ github.repository_owner }}/supai-api-gateway:latest \
+            traefik/
+
+      - name: Push Docker image to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/supai-api-gateway:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/supai-api-gateway:latest

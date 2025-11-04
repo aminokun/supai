@@ -1,0 +1,71 @@
+name: Next.js Frontend CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "frontend/supai/**"
+      - ".github/workflows/nextjs-frontend.yml"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "frontend/supai/**"
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run linting
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Run TypeScript check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build Next.js app
+        working-directory: frontend
+        run: npm run build --if-present
+
+      - name: Run Snyk security scan
+        working-directory: frontend/supai
+        run: |
+          npm install -g snyk
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk test --severity-threshold=high
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test --if-present
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/supai-nextjs-frontend:${{ github.sha }} \
+            -t ghcr.io/${{ github.repository_owner }}/supai-nextjs-frontend:latest \
+            frontend/supai/
+
+      - name: Push Docker image to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/supai-nextjs-frontend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/supai-nextjs-frontend:latest

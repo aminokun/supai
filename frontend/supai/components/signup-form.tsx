@@ -8,54 +8,31 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { signUp } from "@/lib/auth-client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSignup } from "@/hooks/useSignup";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
+  const { signup, isPending } = useSignup();
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
 
     const name = String(formData.get("name"));
-    if (!name) return toast.error("Please enter your name.");
+    if (!name) return toast.error("Please enter your name");
 
     const email = String(formData.get("email"));
-    if (!email) return toast.error("Please enter your email.");
+    if (!email) return toast.error("Please enter your email");
 
     const password = String(formData.get("password"));
-    if (!password) return toast.error("Please enter your password.");
+    if (!password) return toast.error("Please enter your password");
 
-    await signUp.email(
-      {
-        name,
-        email,
-        password,
-      },
-      {
-        onRequest: () => {
-          setIsPending(true);
-        },
-        onResponse: () => {
-          setIsPending(false);
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message);
-        },
-        onSuccess: () => {
-          toast.success(`Registered successfuly, Welcome 👋`);
-          router.push("/profile");
-        },
-      }
-    );
+    await signup(name, email, password);
   }
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

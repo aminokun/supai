@@ -9,17 +9,15 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { signIn } from "@/lib/auth-client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useLogin } from "@/hooks/useLogin";
 import Link from "next/link";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
+  const { login, isPending } = useLogin();
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -30,27 +28,7 @@ export function LoginForm({
     const password = String(formData.get("password"));
     if (!password) return toast.error("Please enter your password");
 
-    await signIn.email(
-      {
-        email,
-        password,
-      },
-      {
-        onRequest: () => {
-          setIsPending(true);
-        },
-        onResponse: () => {
-          setIsPending(false);
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message);
-        },
-        onSuccess: () => {
-          toast.success(`Login successful, Welcome back 👋`)
-          router.push("/profile");
-        },
-      }
-    );
+    await login(email, password);
   }
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>

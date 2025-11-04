@@ -1,10 +1,8 @@
 import cors from "cors";
-import { toNodeHandler } from "better-auth/node";
 import "dotenv/config";
 import express from "express";
-import { auth } from "./auth.js";
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3002;
 
 const app = express();
 
@@ -14,16 +12,15 @@ app.use(
     credentials: true,
   })
 );
-app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.use(express.json());
 
 app.get("/", (req: any, res: any) => {
-  res.send("Yo");
+  res.send("User Service");
 });
 
 app.get("/health", (req: any, res: any) => {
-  res.json({ status: "ok", service: "auth-service" });
+  res.json({ status: "ok", service: "user-service" });
 });
 
 app.listen(PORT, () => {
