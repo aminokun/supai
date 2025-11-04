@@ -75,6 +75,13 @@ const notificationProxy = httpProxy.createProxyServer({
   proxyTimeout: 10000,
 });
 
+const userProxy = httpProxy.createProxyServer({
+  target: process.env.USER_SERVICE_URL || "http://user:3007",
+  changeOrigin: true,
+  timeout: 10000,
+  proxyTimeout: 10000,
+});
+
 // ============================================================
 // Error handling for proxies
 // ============================================================
@@ -104,6 +111,9 @@ portfolioProxy.on("error", (error, req, res) =>
   handleProxyError(error, req, res as ServerResponse)
 );
 notificationProxy.on("error", (error, req, res) =>
+  handleProxyError(error, req, res as ServerResponse)
+);
+userProxy.on("error", (error, req, res) =>
   handleProxyError(error, req, res as ServerResponse)
 );
 
@@ -161,6 +171,15 @@ app.use(
   }
 );
 
+// User Service (requires auth)
+app.use(
+  "/api/users",
+  authMiddleware,
+  (req: Request, res: Response, next: NextFunction) => {
+    userProxy.web(req, res);
+  }
+);
+
 // 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -196,6 +215,7 @@ app.use(
 app.listen(PORT, () => {
   console.log(`API Gateway running on port ${PORT}`);
   console.log(`Auth Service: ${process.env.AUTH_SERVICE_URL || "http://auth:3001"}`);
+  console.log(`User Service: ${process.env.USER_SERVICE_URL || "http://user:3007"}`);
   console.log(`Asset Price Service: ${process.env.ASSET_PRICE_SERVICE_URL || "http://asset-price:3002"}`);
   console.log(`Wallet Tracking Service: ${process.env.WALLET_TRACKING_SERVICE_URL || "http://wallet-tracking:3003"}`);
   console.log(`Portfolio Service: ${process.env.PORTFOLIO_SERVICE_URL || "http://portfolio:3004"}`);

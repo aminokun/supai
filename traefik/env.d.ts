@@ -5,6 +5,7 @@ declare namespace NodeJS {
     FRONTEND_URL?: string;
     TELEGRAM_BOT_URL?: string;
     AUTH_SERVICE_URL?: string;
+    USER_SERVICE_URL?: string;
     ASSET_PRICE_SERVICE_URL?: string;
     WALLET_TRACKING_SERVICE_URL?: string;
     PORTFOLIO_SERVICE_URL?: string;

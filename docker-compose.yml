@@ -104,6 +104,26 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-user:
+    image: postgres:16-alpine
+    container_name: postgres-user
+    environment:
+      POSTGRES_USER: ${USER_DB_USER}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
+      POSTGRES_DB: ${USER_DB_NAME}
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: supai-rabbitmq
@@ -150,6 +170,33 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  user:
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile
+    container_name: supai-user-service
+    environment:
+      PORT: 3007
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@postgres-user:5432/${USER_DB_NAME}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    ports:
+      - "3007:3007"
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3007/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -280,6 +327,7 @@ services:
       FRONTEND_URL: http://localhost:3000
       TELEGRAM_BOT_URL: http://localhost:3006
       AUTH_SERVICE_URL: http://auth:3001
+      USER_SERVICE_URL: http://user:3007
       ASSET_PRICE_SERVICE_URL: http://asset-price:3002
       WALLET_TRACKING_SERVICE_URL: http://wallet-tracking:3003
       PORTFOLIO_SERVICE_URL: http://portfolio:3004
@@ -345,6 +393,7 @@ volumes:
   postgres-asset-price-data:
   postgres-wallet-tracking-data:
   postgres-portfolio-data:
+  postgres-user-data:
   rabbitmq-data:
 
 networks:
