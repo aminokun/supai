@@ -1,0 +1,38 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirectEntryPoint: websecure
+  websecure:
+    address: ":443"
+
+api:
+  insecure: true
+  dashboard: true
+  debug: true
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: supai-network
+  file:
+    filename: /traefik/config.yml
+    watch: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  format: json
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true

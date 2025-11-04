@@ -1,0 +1,151 @@
+http:
+  # Middleware
+  middlewares:
+    # CORS middleware
+    cors:
+      headers:
+        accessControlAllowOriginList:
+          - "http://localhost:3000"
+          - "http://localhost:3006"
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"
+        accessControlExposeHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+
+    # Request logging
+    logRequest:
+      headers:
+        names:
+          Authorization: redact
+
+    # Rate limiting (optional)
+    rateLimit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    # Redirect to HTTPS
+    redirect-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  # Routes
+  routers:
+    # Auth Service
+    auth:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/api/auth`)
+      service: auth-service
+      middlewares:
+        - cors
+        - logRequest
+
+    # Asset Price Service
+    asset-price:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/alerts`)
+      service: asset-price-service
+      middlewares:
+        - cors
+        - logRequest
+        - auth-check
+
+    # Wallet Tracking Service
+    wallet-tracking:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/wallets`) || PathPrefix(`/webhooks/alchemy`)
+      service: wallet-tracking-service
+      middlewares:
+        - cors
+        - logRequest
+        - auth-check
+
+    # Portfolio Service
+    portfolio:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/portfolio`)
+      service: portfolio-service
+      middlewares:
+        - cors
+        - logRequest
+        - auth-check
+
+    # Notification Service (internal only)
+    notification:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/api/notifications`)
+      service: notification-service
+      middlewares:
+        - logRequest
+
+    # Traefik Dashboard
+    dashboard:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/dashboard`) || PathPrefix(`/api/rawdata`)
+      service: api@internal
+      middlewares:
+        - cors
+
+  # Services
+  services:
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://auth:3001"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s
+
+    asset-price-service:
+      loadBalancer:
+        servers:
+          - url: "http://asset-price-service:3002"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s
+
+    wallet-tracking-service:
+      loadBalancer:
+        servers:
+          - url: "http://wallet-tracking-service:3003"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s
+
+    portfolio-service:
+      loadBalancer:
+        servers:
+          - url: "http://portfolio-service:3004"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s
+
+    notification-service:
+      loadBalancer:
+        servers:
+          - url: "http://notification-service:3005"
+        healthCheck:
+          path: /health
+          interval: 30s
+          timeout: 5s

@@ -1,7 +1,11 @@
 version: '3.8'
 services:
+  # ============================================================
+  # Databases
+  # ============================================================
+
   postgres-auth:
-    image: postgres:16-alpine 
+    image: postgres:16-alpine
     container_name: postgres-auth
     environment:
       POSTGRES_USER: ${AUTH_DB_USER}
@@ -14,6 +18,11 @@ services:
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres-notification:
     image: postgres:16-alpine
@@ -29,6 +38,11 @@ services:
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres-asset-price:
     image: postgres:16-alpine
@@ -44,6 +58,11 @@ services:
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ASSET_PRICE_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres-wallet-tracking:
     image: postgres:16-alpine
@@ -59,6 +78,11 @@ services:
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WALLET_TRACKING_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres-portfolio:
     image: postgres:16-alpine
@@ -74,6 +98,11 @@ services:
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PORTFOLIO_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -94,6 +123,221 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
+  # ============================================================
+  # Microservices
+  # ============================================================
+
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: supai-auth-service
+    environment:
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres-auth:5432/${AUTH_DB_NAME}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: http://localhost/api/auth
+      TRUSTED_ORIGINS: http://localhost:3000,http://localhost:3006
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  asset-price:
+    build:
+      context: ./services/asset-price
+      dockerfile: Dockerfile
+    container_name: supai-asset-price-service
+    environment:
+      PORT: 3002
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${ASSET_PRICE_DB_USER}:${ASSET_PRICE_DB_PASSWORD}@postgres-asset-price:5432/${ASSET_PRICE_DB_NAME}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres-asset-price:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  wallet-tracking:
+    build:
+      context: ./services/wallet-tracking
+      dockerfile: Dockerfile
+    container_name: supai-wallet-tracking-service
+    environment:
+      PORT: 3003
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${WALLET_TRACKING_DB_USER}:${WALLET_TRACKING_DB_PASSWORD}@postgres-wallet-tracking:5432/${WALLET_TRACKING_DB_NAME}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
+      ALCHEMY_WEBHOOK_SECRET: ${ALCHEMY_WEBHOOK_SECRET}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres-wallet-tracking:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  portfolio:
+    build:
+      context: ./services/portfolio
+      dockerfile: Dockerfile
+    container_name: supai-portfolio-service
+    environment:
+      PORT: 3004
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${PORTFOLIO_DB_USER}:${PORTFOLIO_DB_PASSWORD}@postgres-portfolio:5432/${PORTFOLIO_DB_NAME}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres-portfolio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile
+    container_name: supai-notification-service
+    environment:
+      PORT: 3005
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${NOTIFICATION_DB_USER}:${NOTIFICATION_DB_PASSWORD}@postgres-notification:5432/${NOTIFICATION_DB_NAME}?schema=public
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================
+  # API Gateway
+  # ============================================================
+
+  api-gateway:
+    build:
+      context: ./traefik
+      dockerfile: Dockerfile
+    container_name: supai-api-gateway
+    environment:
+      PORT: 80
+      NODE_ENV: ${NODE_ENV:-development}
+      FRONTEND_URL: http://localhost:3000
+      TELEGRAM_BOT_URL: http://localhost:3006
+      AUTH_SERVICE_URL: http://auth:3001
+      ASSET_PRICE_SERVICE_URL: http://asset-price:3002
+      WALLET_TRACKING_SERVICE_URL: http://wallet-tracking:3003
+      PORTFOLIO_SERVICE_URL: http://portfolio:3004
+      NOTIFICATION_SERVICE_URL: http://notification:3005
+    ports:
+      - "80:80"
+    depends_on:
+      auth:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================
+  # Frontend Services
+  # ============================================================
+
+  frontend:
+    build:
+      context: ./frontend/supai
+      dockerfile: Dockerfile
+    container_name: supai-nextjs-frontend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: http://localhost
+      NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost/api/auth
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  telegram-bot:
+    build:
+      context: ./frontend/telegram-bot
+      dockerfile: Dockerfile
+    container_name: supai-telegram-bot
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      API_GATEWAY_URL: http://api-gateway
+    ports:
+      - "3006:3006"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - supai-network
+    restart: unless-stopped
 
 volumes:
   postgres-auth-data:

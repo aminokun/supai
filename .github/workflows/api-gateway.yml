@@ -1,4 +1,4 @@
-name: Telegram Bot CI
+name: API Gateway CI
 
 on:
   push:
@@ -6,14 +6,14 @@ on:
       - main
       - develop
     paths:
-      - 'frontend/telegram-bot/**'
-      - '.github/workflows/telegram-bot.yml'
+      - 'traefik/**'
+      - '.github/workflows/api-gateway.yml'
   pull_request:
     branches:
       - main
       - develop
     paths:
-      - 'frontend/telegram-bot/**'
+      - 'traefik/**'
 
 jobs:
   test-and-build:
@@ -27,41 +27,41 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: 'frontend/telegram-bot/package-lock.json'
+          cache-dependency-path: 'traefik/package-lock.json'
 
       - name: Install dependencies
-        working-directory: frontend/telegram-bot
+        working-directory: traefik
         run: npm ci
 
       - name: Run TypeScript check
-        working-directory: frontend/telegram-bot
+        working-directory: traefik
         run: npx tsc --noEmit
 
       - name: Build
-        working-directory: frontend/telegram-bot
+        working-directory: traefik
         run: npm run build --if-present
 
       - name: Run Snyk security scan
-        working-directory: frontend/telegram-bot
+        working-directory: traefik
         run: |
           npm install -g snyk
           snyk auth ${{ secrets.SNYK_TOKEN }}
           snyk test --severity-threshold=high
 
       - name: Run tests
-        working-directory: frontend/telegram-bot
+        working-directory: traefik
         run: npm test --if-present
 
       - name: Build Docker image
         run: |
           docker build \
-            -t ghcr.io/${{ github.repository_owner }}/supai-telegram-bot:${{ github.sha }} \
-            -t ghcr.io/${{ github.repository_owner }}/supai-telegram-bot:latest \
-            frontend/telegram-bot/
+            -t ghcr.io/${{ github.repository_owner }}/supai-api-gateway:${{ github.sha }} \
+            -t ghcr.io/${{ github.repository_owner }}/supai-api-gateway:latest \
+            traefik/
 
       - name: Push Docker image to GitHub Container Registry
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ghcr.io/${{ github.repository_owner }}/supai-telegram-bot:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/supai-telegram-bot:latest
+          docker push ghcr.io/${{ github.repository_owner }}/supai-api-gateway:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/supai-api-gateway:latest

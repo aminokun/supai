@@ -41,6 +41,27 @@ jobs:
         working-directory: services/notification
         run: npm run build --if-present
 
+      - name: Run Snyk security scan
+        working-directory: services/notification
+        run: |
+          npm install -g snyk
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk test --severity-threshold=high
+
       - name: Run tests
         working-directory: services/notification
         run: npm test --if-present
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/supai-notification:${{ github.sha }} \
+            -t ghcr.io/${{ github.repository_owner }}/supai-notification:latest \
+            services/notification/
+
+      - name: Push Docker image to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/${{ github.repository_owner }}/supai-notification:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/supai-notification:latest
