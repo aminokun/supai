@@ -3,6 +3,7 @@ import httpProxy from "http-proxy";
 import cors from "cors";
 import authMiddleware from "./auth-middleware.js";
 import "dotenv/config";
+import { IncomingMessage, ServerResponse } from "http";
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -78,29 +79,32 @@ const notificationProxy = httpProxy.createProxyServer({
 // Error handling for proxies
 // ============================================================
 
-const handleProxyError = (error: Error, req: Request, res: Response) => {
-  console.error(`[Proxy Error] ${req.path}:`, error.message);
+const handleProxyError = (error: Error, req: IncomingMessage, res: ServerResponse) => {
+  console.error(`[Proxy Error]:`, error.message);
 
   if (res.headersSent) return;
 
-  res.status(503).json({
-    error: "Service unavailable",
-    message: "The requested service is temporarily unavailable",
-  });
+  res.writeHead(503, { "Content-Type": "application/json" });
+  res.end(
+    JSON.stringify({
+      error: "Service unavailable",
+      message: "The requested service is temporarily unavailable",
+    })
+  );
 };
 
-authProxy.on("error", (error, req, res) => handleProxyError(error, req, res));
+authProxy.on("error", (error, req, res) => handleProxyError(error, req, res as ServerResponse));
 assetPriceProxy.on("error", (error, req, res) =>
-  handleProxyError(error, req, res)
+  handleProxyError(error, req, res as ServerResponse)
 );
 walletTrackingProxy.on("error", (error, req, res) =>
-  handleProxyError(error, req, res)
+  handleProxyError(error, req, res as ServerResponse)
 );
 portfolioProxy.on("error", (error, req, res) =>
-  handleProxyError(error, req, res)
+  handleProxyError(error, req, res as ServerResponse)
 );
 notificationProxy.on("error", (error, req, res) =>
-  handleProxyError(error, req, res)
+  handleProxyError(error, req, res as ServerResponse)
 );
 
 // ============================================================
