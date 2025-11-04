@@ -1,3 +1,39 @@
+# Environment
 .env
+.env.local
+.env.*.local
+
+# IDE & Editor
 .claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.git
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.log
+.cache/
+.turbo/
