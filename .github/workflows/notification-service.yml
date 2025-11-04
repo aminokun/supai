@@ -15,6 +15,10 @@ on:
     paths:
       - 'services/notification/**'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
