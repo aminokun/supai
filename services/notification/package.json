@@ -4,6 +4,7 @@
   "description": "Notification service for sending Telegram alerts",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

@@ -4,6 +4,7 @@
   "description": "Wallet tracking service for monitoring blockchain wallets",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
