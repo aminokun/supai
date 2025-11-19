@@ -69,7 +69,7 @@ export default function () {
 
     group('Signup', function () {
       const signupStart = Date.now();
-      const signupRes = http.post(`${BASE_URL}/api/auth/signup`, JSON.stringify({
+      const signupRes = http.post(`${BASE_URL}/api/auth/sign-up/email`, JSON.stringify({
         email: user.email,
         password: user.password,
         name: user.name,
@@ -84,11 +84,11 @@ export default function () {
       requestCount.add(1);
 
       const isSignupSuccess = check(signupRes, {
-        'signup status is 200 or 201': (r) => r.status === 200 || r.status === 201,
-        'signup response has token or success message': (r) => {
+        'signup status is 200': (r) => r.status === 200,
+        'signup response has user and token': (r) => {
           try {
             const json = r.json();
-            return json.token || json.success || json.user;
+            return json.user && json.token !== undefined;
           } catch {
             return false;
           }
@@ -106,7 +106,7 @@ export default function () {
 
     group('Signin', function () {
       const signinStart = Date.now();
-      const signinRes = http.post(`${BASE_URL}/api/auth/signin`, JSON.stringify({
+      const signinRes = http.post(`${BASE_URL}/api/auth/sign-in/email`, JSON.stringify({
         email: user.email,
         password: user.password,
       }), {
@@ -121,9 +121,10 @@ export default function () {
 
       const isSigninSuccess = check(signinRes, {
         'signin status is 200': (r) => r.status === 200,
-        'signin response has token': (r) => {
+        'signin response has user and token': (r) => {
           try {
-            return r.json('token') !== undefined || r.json('access_token') !== undefined;
+            const json = r.json();
+            return json.user && json.token !== undefined;
           } catch {
             return false;
           }
