@@ -41,6 +41,26 @@ app.get("/health", (req: any, res: any) => {
   res.json({ status: "ok", service: "user-service" });
 });
 
+// Get user profile by ID (for internal services)
+app.get("/api/users/:id", async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId: id },
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(profile);
+  } catch (error) {
+    console.error("Error fetching user by ID:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Get user profile
 app.get("/api/users/profile", async (req: any, res: any) => {
   try {

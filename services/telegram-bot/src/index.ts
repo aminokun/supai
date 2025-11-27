@@ -17,6 +17,7 @@ import { listCommand } from './commands/list.js';
 import { trackCommand } from './commands/track.js';
 import { untrackCommand } from './commands/untrack.js';
 import { statsCommand } from './commands/stats.js';
+import { statusCommand } from './commands/status.js';
 
 // Extended context with session
 export interface BotContext extends Context {
@@ -79,6 +80,7 @@ bot.command('list', listCommand);
 bot.command('track', trackCommand);
 bot.command('untrack', untrackCommand);
 bot.command('stats', statsCommand);
+bot.command('status', statusCommand);
 
 // Handle text messages (for link code input)
 bot.on('text', async (ctx) => {

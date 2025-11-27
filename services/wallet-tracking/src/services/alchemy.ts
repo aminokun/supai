@@ -43,7 +43,29 @@ export class AlchemyService {
    */
   async syncWebhookAddresses(addresses: string[]): Promise<void> {
     try {
-      const url = `https://dashboard.alchemy.com/api/webhook-addresses`;
+      // Skip Alchemy sync if no webhook ID configured
+      if (!this.webhookId) {
+        console.warn('[AlchemyService] No webhook ID configured, skipping Alchemy sync');
+        // Still store addresses locally for later sync
+        for (const address of addresses) {
+          await prisma.webhookAddress.upsert({
+            where: {
+              webhookId_address: {
+                webhookId: 'local',
+                address: address.toLowerCase()
+              }
+            },
+            update: {},
+            create: {
+              webhookId: 'local',
+              address: address.toLowerCase()
+            }
+          });
+        }
+        return;
+      }
+
+      const url = `https://dashboard.alchemyapi.io/api/update-webhook-addresses`;
 
       const response = await fetch(url, {
         method: 'PATCH',
@@ -60,10 +82,12 @@ export class AlchemyService {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`Failed to sync addresses: ${error}`);
+        console.error(`[AlchemyService] Alchemy sync failed: ${error}`);
+        // Don't throw, just log and continue - still store locally
+        console.log('[AlchemyService] Storing addresses locally despite Alchemy sync failure');
+      } else {
+        console.log(`[AlchemyService] Synced ${addresses.length} addresses to webhook`);
       }
-
-      console.log(`[AlchemyService] Synced ${addresses.length} addresses to webhook`);
 
       // Store addresses in database
       for (const address of addresses) {
@@ -112,7 +136,8 @@ export class AlchemyService {
       console.log(`[AlchemyService] Added ${newAddresses.length} new addresses, ${existingAddresses.length} already tracked`);
     } catch (error) {
       console.error('[AlchemyService] Error adding addresses:', error);
-      throw error;
+      // Don't throw - addresses are still stored locally
+      console.log('[AlchemyService] Addresses stored locally, but Alchemy sync may have failed');
     }
   }
 
@@ -123,7 +148,7 @@ export class AlchemyService {
     if (!addresses.length) return;
 
     try {
-      const url = `https://dashboard.alchemy.com/api/webhook-addresses`;
+      const url = `https://dashboard.alchemyapi.io/api/update-webhook-addresses`;
 
       const response = await fetch(url, {
         method: 'PATCH',

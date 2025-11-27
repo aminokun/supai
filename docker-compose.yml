@@ -125,8 +125,8 @@ services:
     image: rabbitmq:3.13-management
     container_name: supai-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
     ports:
       - "5672:5672" # AMQP port (for services)
       - "15672:15672" # Management UI

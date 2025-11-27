@@ -2,7 +2,13 @@
 
 import React from "react";
 import { TelegramLinkingCard } from "@/components/telegram-linking-card";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +19,7 @@ import { User, Bell, Shield, Palette } from "lucide-react";
 import { toast } from "sonner";
 
 const Settings = () => {
+  
   const { session } = useSession();
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -21,7 +28,7 @@ const Settings = () => {
   };
 
   const handleNotificationChange = (checked: boolean, type: string) => {
-    toast.success(`${type} notifications ${checked ? 'enabled' : 'disabled'}`);
+    toast.success(`${type} notifications ${checked ? "enabled" : "disabled"}`);
   };
 
   return (
@@ -116,7 +123,9 @@ const Settings = () => {
                 <Switch
                   id="transaction-alerts"
                   defaultChecked
-                  onCheckedChange={(checked) => handleNotificationChange(checked, "Transaction")}
+                  onCheckedChange={(checked) =>
+                    handleNotificationChange(checked, "Transaction")
+                  }
                 />
               </div>
 
@@ -130,11 +139,13 @@ const Settings = () => {
                 <Switch
                   id="price-alerts"
                   defaultChecked
-                  onCheckedChange={(checked) => handleNotificationChange(checked, "Price")}
+                  onCheckedChange={(checked) =>
+                    handleNotificationChange(checked, "Price")
+                  }
                 />
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="daily-summary">Daily Summary</Label>
                   <p className="text-sm text-muted-foreground">
@@ -158,15 +169,15 @@ const Settings = () => {
                   id="email-notifications"
                   onCheckedChange={(checked) => handleNotificationChange(checked, "Email")}
                 />
-              </div>
+              </div> */}
             </CardContent>
           </Card>
 
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Quiet Hours</CardTitle>
               <CardDescription>
-                Set times when you don't want to receive notifications
+                Set times when you don&apos;t want to receive notifications
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -191,7 +202,7 @@ const Settings = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </TabsContent>
 
         {/* Security Tab */}
@@ -199,9 +210,7 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Password & Authentication</CardTitle>
-              <CardDescription>
-                Manage your security settings
-              </CardDescription>
+              <CardDescription>Manage your security settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -224,7 +233,9 @@ const Settings = () => {
                     Add an extra layer of security to your account
                   </p>
                 </div>
-                <Button variant="outline" size="sm">Enable 2FA</Button>
+                <Button variant="outline" size="sm">
+                  Enable 2FA
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -245,7 +256,9 @@ const Settings = () => {
                       This device • Last active: Now
                     </p>
                   </div>
-                  <p className="text-sm text-green-600 dark:text-green-400">Active</p>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Active
+                  </p>
                 </div>
               </div>
               <Button variant="destructive" className="mt-4" size="sm">
@@ -278,36 +291,6 @@ const Settings = () => {
                     System
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Display Preferences</CardTitle>
-              <CardDescription>
-                Adjust display settings to your preference
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="compact-mode">Compact Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Show more content with reduced spacing
-                  </p>
-                </div>
-                <Switch id="compact-mode" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="animations">Animations</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enable interface animations
-                  </p>
-                </div>
-                <Switch id="animations" defaultChecked />
               </div>
             </CardContent>
           </Card>

@@ -1,0 +1,80 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --workspaces --if-present || true
+
+          # Install dependencies for each service
+          for service in services/*/; do
+            if [ -f "$service/package.json" ]; then
+              echo "Installing dependencies for $service"
+              (cd "$service" && npm ci)
+            fi
+          done
+
+          # Install frontend dependencies
+          if [ -f "frontend/supai/package.json" ]; then
+            echo "Installing frontend dependencies"
+            (cd frontend/supai && npm ci)
+          fi
+
+      - name: Run tests with coverage
+        run: |
+          # Run tests for each service
+          for service in services/*/; do
+            if [ -f "$service/package.json" ]; then
+              service_name=$(basename "$service")
+              echo "Running tests for $service_name"
+              (cd "$service" && npm test -- --coverage --watchAll=false || true)
+            fi
+          done
+
+          # Run frontend tests
+          if [ -f "frontend/supai/package.json" ]; then
+            echo "Running frontend tests"
+            (cd frontend/supai && npm test -- --coverage --watchAll=false || true)
+          fi
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./services/*/coverage/lcov.info,./frontend/supai/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

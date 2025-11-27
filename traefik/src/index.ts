@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import httpProxy from "http-proxy";
 import cors from "cors";
-import authMiddleware from "./auth-middleware.js";
+import authMiddleware from "./auth-middleware";
 import "dotenv/config";
 import { IncomingMessage, ServerResponse } from "http";
 

@@ -33,16 +33,21 @@ export async function apiClient<T = any>(
     ...fetchOptions.headers,
   };
 
-  // Add auth headers if required (Better Auth uses cookies, but we might need this for API gateway)
+  // Add auth headers if required
   if (requireAuth) {
     const session = await authClient.getSession();
-    if (!session) {
+    if (!session?.data) {
       throw new ApiError('Unauthorized - Please log in', 401);
     }
 
-    // If the backend expects a specific header for user ID (based on your backend code)
-    if (session.user?.id) {
-      headers['x-user-id'] = session.user.id;
+    // Add user ID header for services that expect it (user service, wallet tracking, etc.)
+    if (session.data.user?.id) {
+      headers['x-user-id'] = session.data.user.id;
+    }
+
+    // Also add Authorization header with Bearer token if available
+    if (session.data.session?.token) {
+      headers['Authorization'] = `Bearer ${session.data.session.token}`;
     }
   }
 

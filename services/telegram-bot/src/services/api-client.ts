@@ -44,9 +44,9 @@ export class ApiClient {
       }
     });
 
-    // Wallet tracking service (through API gateway)
+    // Wallet tracking service (direct for now, API gateway not running)
     this.walletServiceClient = axios.create({
-      baseURL: `${process.env.API_GATEWAY_URL || 'http://localhost:3000'}/api/wallet-tracking`,
+      baseURL: process.env.WALLET_SERVICE_URL || 'http://localhost:3003/api/wallet-tracking',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
