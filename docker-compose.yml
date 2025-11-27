@@ -125,8 +125,8 @@ services:
     image: rabbitmq:3.13-management
     container_name: supai-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
     ports:
       - "5672:5672" # AMQP port (for services)
       - "15672:15672" # Management UI
@@ -150,15 +150,12 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres-auth:5432/${AUTH_DB_NAME}?schema=public
+      DATABASE_URL: ${AUTH_DATABASE_URL:-postgresql://neondb_owner:npg_CimHrb16YtyD@ep-muddy-night-agidrotj-pooler.c-2.eu-central-1.aws.neon.tech/auth?sslmode=require&channel_binding=require}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: http://localhost/api/auth
       TRUSTED_ORIGINS: http://localhost:3000,http://localhost:3006
     ports:
       - "3001:3001"
-    depends_on:
-      postgres-auth:
-        condition: service_healthy
     networks:
       - supai-network
     restart: unless-stopped
@@ -185,13 +182,12 @@ services:
     environment:
       PORT: 3007
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@postgres-user:5432/${USER_DB_NAME}?schema=public
+      DATABASE_URL: ${USER_DATABASE_URL:-postgresql://neondb_owner:npg_CimHrb16YtyD@ep-muddy-night-agidrotj-pooler.c-2.eu-central-1.aws.neon.tech/user?sslmode=require&channel_binding=require}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
     ports:
       - "3007:3007"
     depends_on:
-      postgres-user:
-        condition: service_healthy
+      # Removed dependency on postgres-user since we're using Neon cloud database
       rabbitmq:
         condition: service_healthy
     networks:
@@ -255,15 +251,16 @@ services:
     environment:
       PORT: 3003
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${WALLET_TRACKING_DB_USER}:${WALLET_TRACKING_DB_PASSWORD}@postgres-wallet-tracking:5432/${WALLET_TRACKING_DB_NAME}?schema=public
+      DATABASE_URL: ${WALLET_TRACKING_DATABASE_URL:-postgresql://neondb_owner:npg_CimHrb16YtyD@ep-muddy-night-agidrotj-pooler.c-2.eu-central-1.aws.neon.tech/wallet-tracking?sslmode=require&channel_binding=require}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
-      ALCHEMY_API_KEY: ${ALCHEMY_API_KEY}
-      ALCHEMY_WEBHOOK_SECRET: ${ALCHEMY_WEBHOOK_SECRET}
+      ALCHEMY_AUTH_TOKEN: ${ALCHEMY_AUTH_TOKEN}
+      ALCHEMY_APP_ID: ${ALCHEMY_APP_ID}
+      ALCHEMY_WEBHOOK_ID: ${ALCHEMY_WEBHOOK_ID}
+      ALCHEMY_WEBHOOK_SIGNING_KEY: ${ALCHEMY_WEBHOOK_SIGNING_KEY}
     ports:
       - "3003:3003"
     depends_on:
-      postgres-wallet-tracking:
-        condition: service_healthy
+      # Removed dependency on postgres-wallet-tracking since we're using Neon
       rabbitmq:
         condition: service_healthy
     networks:
@@ -327,13 +324,14 @@ services:
     environment:
       PORT: 3005
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${NOTIFICATION_DB_USER}:${NOTIFICATION_DB_PASSWORD}@postgres-notification:5432/${NOTIFICATION_DB_NAME}?schema=public
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:-postgresql://neondb_owner:npg_CimHrb16YtyD@ep-muddy-night-agidrotj-pooler.c-2.eu-central-1.aws.neon.tech/notification?sslmode=require&channel_binding=require}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      USER_SERVICE_URL: http://user:3007
     ports:
       - "3005:3005"
     depends_on:
-      postgres-notification:
-        condition: service_healthy
+      # Removed dependency on postgres-notification since we're using Neon
       rabbitmq:
         condition: service_healthy
     networks:
@@ -415,21 +413,45 @@ services:
 
   telegram-bot:
     build:
-      context: ./frontend/telegram-bot
+      context: ./services/telegram-bot
       dockerfile: Dockerfile
     container_name: supai-telegram-bot
     environment:
       NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3006
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      API_GATEWAY_URL: http://api-gateway
+      BOT_USERNAME: ${BOT_USERNAME:-supai_wallet_bot}
+      API_GATEWAY_URL: http://api-gateway/api
+      USER_SERVICE_URL: http://user:3007
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      SESSION_TIMEOUT_MINUTES: 60
+      MAX_RETRIES: 3
     ports:
       - "3006:3006"
     depends_on:
       api-gateway:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      user:
+        condition: service_healthy
     networks:
       - supai-network
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3006/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   postgres-auth-data:

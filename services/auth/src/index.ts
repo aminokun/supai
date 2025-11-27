@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 const app = express();
 
+app.use(express.json());
 app.use(
   cors({
     origin: `${process.env.TRUSTED_ORIGINS}`,
@@ -15,8 +16,6 @@ app.use(
   })
 );
 app.all("/api/auth/{*any}", toNodeHandler(auth));
-
-app.use(express.json());
 
 app.get("/", (req: any, res: any) => {
   res.send("Yo");

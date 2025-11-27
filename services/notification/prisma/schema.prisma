@@ -3,9 +3,73 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model NotificationPreference {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  enableSwaps         Boolean  @default(true)
+  enableTransfers     Boolean  @default(true)
+  enableApprovals     Boolean  @default(true)
+  enableMemecoinsOnly Boolean  @default(false)
+  minValueThreshold   Float?   // Minimum USD value to notify
+  quietHours          Boolean  @default(false) // Enable quiet hours
+  quietHoursStart     String?  // e.g., "22:00"
+  quietHoursEnd       String?  // e.g., "08:00"
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+model NotificationLog {
+  id             String    @id @default(uuid())
+  userId         String
+  telegramChatId String?
+  channel        String    // telegram, email, push
+  messageType    String    // transaction, alert, system
+  message        String    @db.Text
+  metadata       Json?     // Additional message data
+  status         String    // sent, failed, pending
+  retryCount     Int       @default(0)
+  maxRetries     Int       @default(3)
+  txHash         String?
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([telegramChatId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+model NotificationQueue {
+  id             String   @id @default(uuid())
+  userId         String
+  telegramChatId String
+  message        String   @db.Text
+  parseMode      String   @default("HTML") // HTML or Markdown
+  keyboard       Json?    // Telegram keyboard markup
+  priority       String   @default("normal") // high, normal, low
+  attempts       Int      @default(0)
+  maxAttempts    Int      @default(3)
+  status         String   @default("pending") // pending, processing, sent, failed
+  scheduledFor   DateTime @default(now())
+  processedAt    DateTime?
+  error          String?
+  txHash         String?
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+  @@index([priority])
+  @@index([scheduledFor])
+  @@map("notification_queue")
 }

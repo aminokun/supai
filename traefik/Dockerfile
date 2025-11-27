@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # Build stage
 FROM node:20-alpine AS builder
 
@@ -8,7 +9,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source code
 COPY src ./src
@@ -25,7 +26,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+RUN --mount=type=cache,target=/root/.npm npm ci --only=production
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist

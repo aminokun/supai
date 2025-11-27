@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TrackedWallet {
+  id        String   @id @default(uuid())
+  address   String // Ethereum address (lowercase)
+  userId    String // References user from user service
+  name      String // User-defined name for the wallet
+  groupName String? // Optional grouping
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, address])
+  @@index([address])
+  @@index([userId])
+  @@map("tracked_wallets")
+}
+
+model AlchemyWebhook {
+  id           String    @id @default(uuid())
+  webhookId    String    @unique // Alchemy webhook ID
+  webhookUrl   String
+  signingKey   String? // For webhook signature verification
+  isActive     Boolean   @default(true)
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("alchemy_webhooks")
+}
+
+model WebhookAddress {
+  id        String   @id @default(uuid())
+  webhookId String // References AlchemyWebhook.webhookId
+  address   String // Ethereum address being tracked
+  addedAt   DateTime @default(now())
+
+  @@unique([webhookId, address])
+  @@index([address])
+  @@map("webhook_addresses")
+}
+
+model WalletTransaction {
+  id           String   @id @default(uuid())
+  txHash       String   @unique
+  fromAddress  String
+  toAddress    String?
+  value        String // Wei value as string
+  blockNumber  Int
+  timestamp    DateTime
+  type         String // swap, transfer, approval, etc
+  status       String // success, pending, failed
+  tokenAddress String?
+  tokenSymbol  String?
+  tokenName    String?
+  amount       String? // Token amount
+  priceUSD     Float? // USD value at time of transaction
+  gasUsed      String?
+  gasPrice     String?
+  category     String? // external, internal, erc20, erc721, etc
+  processed    Boolean  @default(false)
+  metadata     Json? // Additional transaction metadata
+  createdAt    DateTime @default(now())
+
+  @@index([fromAddress])
+  @@index([toAddress])
+  @@index([txHash])
+  @@index([processed])
+  @@index([timestamp])
+  @@map("wallet_transactions")
+}

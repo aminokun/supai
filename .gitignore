@@ -36,3 +36,4 @@ coverage/
 *.log
 .cache/
 .turbo/
+doc/
