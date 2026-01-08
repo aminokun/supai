@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { getCachedSession, cacheSession, isRedisConnected } from "./redis-client.js";
 
 // Paths that don't require authentication
 const SKIP_AUTH_PATHS = [
@@ -13,6 +14,7 @@ const SKIP_AUTH_PATHS = [
 
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://auth:3001";
 const AUTH_SESSION_TIMEOUT = 5000; // 5 seconds
+const SESSION_CACHE_TTL = 300; // 5 minutes cache TTL
 
 interface AuthSession {
   user: {
@@ -47,10 +49,33 @@ export async function authMiddleware(
     return;
   }
 
-  // Extract Authorization header (Bearer token)
-  const authHeader = req.headers.authorization || req.headers.Authorization;
+  // Extract session token - prefer cookie, fall back to Authorization header
+  // better-auth uses cookies with format: token.signature
+  let sessionToken: string | undefined;
 
-  if (!authHeader || typeof authHeader !== "string") {
+  // First, try to get from cookie (contains full token with signature)
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, value] = cookie.trim().split('=');
+      if (key && value) acc[key] = value;
+      return acc;
+    }, {} as Record<string, string>);
+    sessionToken = cookies['better-auth.session_token'];
+  }
+
+  // Fall back to Authorization header if no cookie
+  if (!sessionToken) {
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    if (authHeader && typeof authHeader === "string") {
+      const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (tokenMatch) {
+        sessionToken = tokenMatch[1];
+      }
+    }
+  }
+
+  if (!sessionToken) {
     res.status(401).json({
       error: "Missing authorization token",
       code: "NO_AUTH_TOKEN",
@@ -58,21 +83,25 @@ export async function authMiddleware(
     return;
   }
 
-  // Validate header format (Bearer <token>)
-  const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!tokenMatch) {
-    res.status(401).json({
-      error: 'Invalid authorization header format. Use: "Bearer <token>"',
-      code: "INVALID_AUTH_FORMAT",
-    });
-    return;
-  }
-
-  const token = tokenMatch[1];
+  const token = sessionToken;
 
   try {
-    // Verify session with Auth Service
-    const session = await verifySessionWithAuthService(token);
+    let session: AuthSession | null = null;
+
+    // Check Redis cache first (if Redis is connected)
+    if (isRedisConnected()) {
+      session = await getCachedSession(token);
+    }
+
+    // Cache miss or Redis not connected - verify with Auth Service
+    if (!session) {
+      session = await verifySessionWithAuthService(token);
+
+      // Cache the session in Redis for future requests
+      if (isRedisConnected()) {
+        await cacheSession(token, session, SESSION_CACHE_TTL);
+      }
+    }
 
     // Validate session expiration
     const expiresAt = new Date(session.session.expiresAt);
@@ -121,18 +150,21 @@ export async function authMiddleware(
 
 /**
  * Verify session with Auth Service
- * Calls /api/auth/session endpoint with the Bearer token
- * This is the proper way to verify a user with better-auth
+ * Calls /api/auth/get-session endpoint with the session cookie
+ * better-auth uses cookies for session management, not Bearer tokens
  */
 async function verifySessionWithAuthService(token: string): Promise<AuthSession> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AUTH_SESSION_TIMEOUT);
 
   try {
-    const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/session`, {
+    // better-auth expects the session token in a cookie, not Bearer header
+    // The token from Authorization header is the same as the cookie token (first part before the dot)
+    const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/get-session`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        // Forward the session as a cookie - better-auth expects this format
+        Cookie: `better-auth.session_token=${token}`,
         "Content-Type": "application/json",
       },
       signal: controller.signal,

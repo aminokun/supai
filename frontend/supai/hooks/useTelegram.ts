@@ -39,7 +39,7 @@ export function useTelegram() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const data = await api.get<TelegramStatus>('/api/users/telegram-status');
+      const data = await api.get<TelegramStatus>('/users/telegram-status');
 
       setState(prev => ({
         ...prev,
@@ -70,7 +70,7 @@ export function useTelegram() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const data = await api.post<GenerateCodeResponse>('/api/users/telegram/generate-code');
+      const data = await api.post<GenerateCodeResponse>('/users/telegram/generate-code');
 
       // Calculate expiration time (5 minutes from now)
       const expiresAt = new Date();
@@ -115,7 +115,7 @@ export function useTelegram() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      await api.delete('/api/users/telegram');
+      await api.delete('/users/telegram');
 
       setState(prev => ({
         ...prev,

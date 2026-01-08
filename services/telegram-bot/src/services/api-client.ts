@@ -37,7 +37,7 @@ export class ApiClient {
   constructor() {
     // Direct user service client (for linking)
     this.userServiceClient = axios.create({
-      baseURL: process.env.USER_SERVICE_URL || 'http://localhost:3002',
+      baseURL: process.env.USER_SERVICE_URL || 'http://user:3007',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json'
@@ -46,7 +46,7 @@ export class ApiClient {
 
     // Wallet tracking service (direct for now, API gateway not running)
     this.walletServiceClient = axios.create({
-      baseURL: process.env.WALLET_SERVICE_URL || 'http://localhost:3003/api/wallet-tracking',
+      baseURL: process.env.WALLET_SERVICE_URL || 'http://wallet-tracking:3003',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ export class ApiClient {
 
     // General API gateway client
     this.apiGatewayClient = axios.create({
-      baseURL: process.env.API_GATEWAY_URL || 'http://localhost:3000',
+      baseURL: process.env.API_GATEWAY_URL || 'http://api-gateway:80',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export class ApiClient {
   // Wallet tracking methods
   async getUserWallets(userId: string): Promise<Wallet[]> {
     try {
-      const response = await this.walletServiceClient.get('/wallets', {
+      const response = await this.walletServiceClient.get('/api/wallet-tracking/wallets', {
         headers: {
           'x-user-id': userId
         }
@@ -144,7 +144,7 @@ export class ApiClient {
   async addWallet(userId: string, address: string, name: string, groupName?: string): Promise<Wallet | null> {
     try {
       const response = await this.walletServiceClient.post(
-        '/wallets',
+        '/api/wallet-tracking/wallets',
         { address, name, groupName },
         {
           headers: {
@@ -161,7 +161,7 @@ export class ApiClient {
 
   async removeWallet(userId: string, address: string): Promise<boolean> {
     try {
-      await this.walletServiceClient.delete(`/wallets/${address}`, {
+      await this.walletServiceClient.delete(`/api/wallet-tracking/wallets/${address}`, {
         headers: {
           'x-user-id': userId
         }
@@ -175,7 +175,7 @@ export class ApiClient {
 
   async getUserStats(userId: string): Promise<UserStats | null> {
     try {
-      const response = await this.walletServiceClient.get('/stats', {
+      const response = await this.walletServiceClient.get('/api/wallet-tracking/stats', {
         headers: {
           'x-user-id': userId
         }

@@ -2,17 +2,18 @@ import { Markup } from 'telegraf';
 import { BotContext } from '../index.js';
 import { apiClient } from '../services/api-client.js';
 
-export async function untrackCommand(ctx: BotContext) {
+export async function untrackCommand(ctx: BotContext): Promise<void> {
   // Check if linked
   if (!ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Please link your account first using /link command.'
     );
+    return;
   }
 
   // Parse command arguments
-  const commandText = ctx.message?.text || '';
-  const parts = commandText.split(' ').filter(p => p.length > 0);
+  const commandText = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
+  const parts = commandText.split(' ').filter((p: string) => p.length > 0);
 
   // Check if address provided
   if (parts.length < 2) {
@@ -21,7 +22,7 @@ export async function untrackCommand(ctx: BotContext) {
       const wallets = await apiClient.getUserWallets(ctx.session.userId!);
 
       if (wallets.length === 0) {
-        return ctx.reply(
+        void ctx.reply(
           `📝 <b>Untrack a Wallet</b>\n\n` +
           `You don't have any tracked wallets.\n\n` +
           `Use /track to add wallets first.`,
@@ -66,7 +67,7 @@ export async function untrackCommand(ctx: BotContext) {
 
   // Validate address format
   if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    return ctx.reply(
+    void ctx.reply(
       `❌ Invalid Ethereum address format.\n\n` +
       `Please provide a valid address starting with 0x.\n\n` +
       `Example: <code>/untrack 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0</code>`,

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import axios from "axios";
 import { PrismaClient } from "../../generated/prisma/index.js";
 import { alchemyService } from "../services/alchemy.js";
 import { walletManager } from "../services/wallet-manager.js";
@@ -7,6 +8,39 @@ import { rabbitmqService } from "../services/rabbitmq.js";
 
 const router = Router();
 const prisma = new PrismaClient();
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || "http://user:3007";
+
+interface AffectedUser {
+  userId: string;
+  telegramChatId?: string;
+  telegramUsername?: string;
+}
+
+/**
+ * Fetch user profiles with telegram data from user service
+ * Uses batch endpoint to avoid N+1 queries
+ */
+async function fetchUserProfiles(userIds: string[]): Promise<AffectedUser[]> {
+  if (userIds.length === 0) return [];
+
+  try {
+    const response = await axios.post(`${USER_SERVICE_URL}/api/users/batch`, {
+      userIds,
+      fields: ["userId", "telegramChatId", "telegramUsername"],
+    });
+
+    const { users } = response.data;
+    return users.map((u: any) => ({
+      userId: u.userId,
+      telegramChatId: u.telegramChatId,
+      telegramUsername: u.telegramUsername,
+    }));
+  } catch (error) {
+    console.error("[Webhook] Failed to fetch user profiles:", error);
+    // Fallback: return just user IDs without telegram data
+    return userIds.map((userId) => ({ userId }));
+  }
+}
 
 /**
  * Alchemy webhook endpoint
@@ -52,7 +86,12 @@ router.post("/webhooks/alchemy", async (req: Request, res: Response) => {
           category: activity.category,
           contractAddress: activity.rawContract?.address,
           asset: activity.asset,
+          assetName: activity.asset || "ETH", // Token symbol
+          decimals: activity.rawContract?.decimal || null, // Token decimals
           amount: activity.rawContract?.value,
+          amountFloat: activity.rawContract?.value && activity.rawContract?.decimal
+            ? parseFloat(activity.rawContract.value) / Math.pow(10, activity.rawContract.decimal)
+            : parseFloat(activity.value || 0) / 1e18,
           priceUSD: activity.netAssetTransfers?.[0]?.valueUSD || null,
         };
 
@@ -81,37 +120,45 @@ router.post("/webhooks/alchemy", async (req: Request, res: Response) => {
             status: "pending",
             category: txData.category,
             tokenAddress: txData.contractAddress,
+            tokenSymbol: txData.assetName,
+            tokenName: txData.assetName,
+            amount: txData.amountFloat ? String(txData.amountFloat) : null,
             priceUSD: txData.priceUSD,
             metadata: activity,
           },
         });
 
         // Find all users tracking these addresses
-        const affectedUsers = new Set<string>();
+        const affectedUserIds = new Set<string>();
 
         if (txData.fromAddress) {
           const fromUsers = await walletManager.getUsersTrackingAddress(
             txData.fromAddress
           );
-          fromUsers.forEach((userId) => affectedUsers.add(userId));
+          fromUsers.forEach((userId) => affectedUserIds.add(userId));
         }
 
         if (txData.toAddress) {
           const toUsers = await walletManager.getUsersTrackingAddress(
             txData.toAddress
           );
-          toUsers.forEach((userId) => affectedUsers.add(userId));
+          toUsers.forEach((userId) => affectedUserIds.add(userId));
         }
 
         // Publish to RabbitMQ if users are affected
-        if (affectedUsers.size > 0) {
+        if (affectedUserIds.size > 0) {
+          // Fetch user profiles with telegram data (single batch call)
+          const affectedUsers = await fetchUserProfiles(
+            Array.from(affectedUserIds)
+          );
+
           await rabbitmqService.publishTransactionDetected({
             ...txData,
-            affectedUsers: Array.from(affectedUsers),
+            affectedUsers,
           });
 
           console.log(
-            `[Webhook] Transaction ${txData.txHash} affects ${affectedUsers.size} users`
+            `[Webhook] Transaction ${txData.txHash} affects ${affectedUsers.length} users`
           );
         }
       } catch (error) {
@@ -134,7 +181,7 @@ router.post("/webhooks/test", async (req: Request, res: Response) => {
     const { address, txHash } = req.body;
 
     // Create a test transaction event
-    const testEvent = {
+    const testEvent: any = {
       txHash: txHash || `0xtest${Date.now()}`,
       fromAddress: address || "0xtest",
       toAddress: "0xdestination",
@@ -143,21 +190,26 @@ router.post("/webhooks/test", async (req: Request, res: Response) => {
       timestamp: new Date(),
       category: "external",
       asset: "ETH",
+      assetName: "ETH",
+      decimals: 18,
+      amountFloat: 1.0,
       priceUSD: 3000,
-      affectedUsers: [],
+      affectedUsers: [] as AffectedUser[],
     };
 
     // Find users tracking this address
-    const users = await walletManager.getUsersTrackingAddress(
+    const userIds = await walletManager.getUsersTrackingAddress(
       testEvent.fromAddress
     );
-    testEvent.affectedUsers = users;
 
-    if (users.length > 0) {
+    if (userIds.length > 0) {
+      // Fetch user profiles with telegram data
+      testEvent.affectedUsers = await fetchUserProfiles(userIds);
+
       await rabbitmqService.publishTransactionDetected(testEvent);
       res.json({
         success: true,
-        message: `Test event sent to ${users.length} users`,
+        message: `Test event sent to ${testEvent.affectedUsers.length} users`,
         transaction: testEvent,
       });
     } else {

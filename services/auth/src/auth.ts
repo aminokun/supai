@@ -18,5 +18,6 @@ export const auth = betterAuth({
       generateId: false,
     },
   },
-  trustedOrigins: [`${process.env.TRUSTED_ORIGINS}`],
+  trustedOrigins: process.env.TRUSTED_ORIGINS?.split(',') || [],
+  basePath: "/api/auth",
 });

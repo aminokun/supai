@@ -8,8 +8,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY . .
 
-RUN npm run build
 RUN npx prisma generate
+RUN npm run build
 
 # Runtime stage
 FROM node:20-alpine
@@ -20,7 +20,7 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --only=production
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/generated ./generated
 COPY prisma ./prisma
 
 EXPOSE 3001

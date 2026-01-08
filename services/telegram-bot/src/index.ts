@@ -36,7 +36,7 @@ app.use(cors());
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'telegram-bot',
@@ -84,8 +84,8 @@ bot.command('status', statusCommand);
 
 // Handle text messages (for link code input)
 bot.on('text', async (ctx) => {
-  const message = ctx.message.text;
-  const chatId = ctx.chat.id.toString();
+  const message = 'text' in ctx.message ? ctx.message.text : '';
+  const chatId = ctx.chat!.id.toString();
 
   // Check if user is in linking process
   const linkingState = sessionManager.getLinkingState(chatId);
@@ -97,7 +97,8 @@ bot.on('text', async (ctx) => {
 
       // Validate code format (6 digits)
       if (!/^\d{6}$/.test(code)) {
-        return ctx.reply('Invalid code format. Please enter the 6-digit code from your account settings.');
+        void ctx.reply('Invalid code format. Please enter the 6-digit code from your account settings.');
+        return;
       }
 
       // Verify code with user service
@@ -141,15 +142,16 @@ bot.on('text', async (ctx) => {
 });
 
 // Handle callback queries (inline keyboard buttons)
-bot.on('callback_query', async (ctx) => {
-  const data = ctx.callbackQuery.data;
+bot.on('callback_query', async (ctx): Promise<void> => {
+  const data = ctx.callbackQuery && 'data' in ctx.callbackQuery ? ctx.callbackQuery.data : undefined;
 
   if (data?.startsWith('untrack:')) {
     const address = data.replace('untrack:', '');
 
     try {
       if (!ctx.session?.userId) {
-        return ctx.answerCbQuery('Please link your account first');
+        void ctx.answerCbQuery('Please link your account first');
+        return;
       }
 
       await apiClient.removeWallet(ctx.session.userId, address);
@@ -169,7 +171,7 @@ bot.on('callback_query', async (ctx) => {
   }
 
   // Always acknowledge callback query if not already done
-  if (!ctx.callbackQuery.answered) {
+  if (!('answered' in ctx.callbackQuery && ctx.callbackQuery.answered)) {
     await ctx.answerCbQuery();
   }
 });

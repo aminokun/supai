@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import httpProxy from "http-proxy";
 import cors from "cors";
-import authMiddleware from "./auth-middleware";
+import authMiddleware from "./auth-middleware.js";
 import "dotenv/config";
 import { IncomingMessage, ServerResponse } from "http";
 
@@ -17,7 +17,7 @@ app.use(
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id"],
     exposedHeaders: ["X-Total-Count", "X-Page-Number"],
   })
 );
@@ -28,8 +28,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Parse JSON bodies
-app.use(express.json());
+// NOTE: Do NOT use express.json() here - it consumes the body before proxying
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
@@ -122,7 +121,10 @@ userProxy.on("error", (error, req, res) =>
 // ============================================================
 
 // Auth Service (no auth required for signup/signin)
+// We need to rewrite the URL since Express strips the matched prefix
 app.use("/api/auth", (req: Request, res: Response, next: NextFunction) => {
+  // Preserve the full URL by setting req.url to the original URL
+  req.url = req.originalUrl;
   authProxy.web(req, res);
 });
 
@@ -137,9 +139,11 @@ app.use(
 
 // Wallet Tracking Service (requires auth, except for webhooks)
 app.use(
-  "/wallets",
+  "/api/wallet-tracking",
   authMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
+    // Preserve the full URL since wallet service expects /api/wallet-tracking/... paths
+    req.url = req.originalUrl;
     walletTrackingProxy.web(req, res);
   }
 );
@@ -149,6 +153,7 @@ app.use(
   "/webhooks/alchemy",
   (req: Request, res: Response, next: NextFunction) => {
     // TODO: Add IP whitelist check for Alchemy
+    req.url = req.originalUrl;
     walletTrackingProxy.web(req, res);
   }
 );
@@ -176,6 +181,8 @@ app.use(
   "/api/users",
   authMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
+    // Preserve the full URL since user service expects /api/users/... paths
+    req.url = req.originalUrl;
     userProxy.web(req, res);
   }
 );

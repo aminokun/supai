@@ -5,11 +5,13 @@ import 'dotenv/config';
 // Import services
 import { rabbitmqService } from './services/rabbitmq.js';
 import { alchemyService } from './services/alchemy.js';
+import { PrismaClient } from '../generated/prisma/index.js';
 
 // Import routes
 import webhookRoutes from './routes/webhooks.js';
 import walletRoutes from './routes/wallets.js';
 
+const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3003;
 
@@ -25,6 +27,49 @@ app.get('/health', (req, res) => {
     service: 'wallet-tracking-service',
     timestamp: new Date().toISOString()
   });
+});
+
+// Internal endpoint: Deactivate user (called by user service during deletion request)
+app.post('/api/internal/users/:userId/deactivate', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Verify this is an internal request
+    const internalKey = req.headers['x-internal-service'];
+    if (internalKey !== process.env.INTERNAL_SERVICE_KEY && internalKey !== 'user-service') {
+      return res.status(403).json({ error: 'Forbidden - internal endpoint' });
+    }
+
+    // Get all tracked wallet addresses for this user
+    const trackedWallets = await prisma.trackedWallet.findMany({
+      where: { userId },
+      select: { address: true },
+    });
+
+    const addresses = trackedWallets.map((w) => w.address);
+
+    // Remove from Alchemy webhooks
+    if (addresses.length > 0) {
+      try {
+        await alchemyService.removeAddresses(addresses);
+      } catch (error) {
+        console.log(`[GDPR] Alchemy cleanup skipped: ${error}`);
+      }
+    }
+
+    // Note: We don't delete wallets here yet - that happens after the grace period
+    // via the RabbitMQ user.deleted event
+
+    console.log(`[GDPR] Deactivated wallets for user ${userId}, removed from ${addresses.length} webhook addresses`);
+
+    res.json({
+      success: true,
+      addressesRemoved: addresses.length,
+    });
+  } catch (error) {
+    console.error('[GDPR] Error deactivating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Routes

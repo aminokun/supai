@@ -1,12 +1,13 @@
 import { BotContext } from '../index.js';
 import { apiClient } from '../services/api-client.js';
 
-export async function statsCommand(ctx: BotContext) {
+export async function statsCommand(ctx: BotContext): Promise<void> {
   // Check if linked
   if (!ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Please link your account first using /link command.'
     );
+    return;
   }
 
   try {

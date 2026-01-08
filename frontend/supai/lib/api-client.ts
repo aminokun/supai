@@ -42,12 +42,12 @@ export async function apiClient<T = any>(
 
     // Add user ID header for services that expect it (user service, wallet tracking, etc.)
     if (session.data.user?.id) {
-      headers['x-user-id'] = session.data.user.id;
+      (headers as Record<string, string>)['x-user-id'] = session.data.user.id;
     }
 
     // Also add Authorization header with Bearer token if available
     if (session.data.session?.token) {
-      headers['Authorization'] = `Bearer ${session.data.session.token}`;
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${session.data.session.token}`;
     }
   }
 
@@ -113,6 +113,10 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(endpoint: string, options?: Omit<ApiClientOptions, 'method'>) =>
-    apiClient<T>(endpoint, { ...options, method: 'DELETE' }),
+  delete: <T = any>(endpoint: string, data?: any, options?: Omit<ApiClientOptions, 'method' | 'body'>) =>
+    apiClient<T>(endpoint, {
+      ...options,
+      method: 'DELETE',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
 };

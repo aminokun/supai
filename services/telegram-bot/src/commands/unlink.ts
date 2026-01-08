@@ -3,15 +3,14 @@ import { BotContext } from '../index.js';
 import { sessionManager } from '../services/session-manager.js';
 import { apiClient } from '../services/api-client.js';
 
-export async function unlinkCommand(ctx: BotContext) {
-  const chatId = ctx.chat!.id.toString();
-
+export async function unlinkCommand(ctx: BotContext): Promise<void> {
   // Check if linked
   if (!ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Your Telegram is not linked to any account.\n\n' +
       'Use /link to connect your Supai account.'
     );
+    return;
   }
 
   // Ask for confirmation with inline keyboard
@@ -35,8 +34,8 @@ export async function unlinkCommand(ctx: BotContext) {
 }
 
 // Handle the confirmation callbacks
-export async function handleUnlinkCallbacks(ctx: BotContext) {
-  const action = ctx.callbackQuery?.data;
+export async function handleUnlinkCallbacks(ctx: BotContext): Promise<void> {
+  const action = ctx.callbackQuery && 'data' in ctx.callbackQuery ? ctx.callbackQuery.data : undefined;
 
   if (action === 'confirm_unlink') {
     const chatId = ctx.chat!.id.toString();

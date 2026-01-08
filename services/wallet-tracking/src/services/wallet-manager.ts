@@ -7,7 +7,7 @@ export interface TrackedWalletData {
   userId: string;
   address: string;
   name: string;
-  groupName?: string;
+  groupName?: string | undefined;
 }
 
 export class WalletManager {
@@ -39,7 +39,7 @@ export class WalletManager {
           userId,
           address: normalizedAddress,
           name,
-          groupName,
+          groupName: groupName ?? null,
           isActive: true
         }
       });
@@ -217,9 +217,9 @@ export class WalletManager {
   /**
    * Bulk add wallets
    */
-  async bulkAddWallets(userId: string, wallets: Array<{ address: string; name: string; groupName?: string }>): Promise<any[]> {
-    const results = [];
-    const errors = [];
+  async bulkAddWallets(userId: string, wallets: Array<{ address: string; name: string; groupName?: string }>): Promise<{ added: any[]; errors: any[] }> {
+    const results: any[] = [];
+    const errors: any[] = [];
 
     for (const wallet of wallets) {
       try {
