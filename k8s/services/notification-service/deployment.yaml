@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: notification-service
-        image: supai/notification-service:latest
+        image: supaidemoacr.azurecr.io/supai-notification:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3005

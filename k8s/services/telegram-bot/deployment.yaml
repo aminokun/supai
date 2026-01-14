@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: telegram-bot
-        image: supai/telegram-bot:latest
+        image: supaidemoacr.azurecr.io/supai-telegram-bot:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3006

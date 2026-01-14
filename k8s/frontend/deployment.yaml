@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: supai/frontend:latest
+        image: supaidemoacr.azurecr.io/supai-frontend:v2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
@@ -26,9 +26,9 @@ spec:
         - name: NODE_ENV
           value: "production"
         - name: NEXT_PUBLIC_API_URL
-          value: "http://api-gateway/api"
+          value: "http://4.165.168.98/api"
         - name: NEXT_PUBLIC_BETTER_AUTH_URL
-          value: "http://api-gateway/api/auth"
+          value: "http://4.165.168.98/api/auth"
         - name: NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
           value: "supai_wallet_bot"
         resources:

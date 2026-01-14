@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -17,14 +17,14 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: supai/api-gateway:latest
+        image: supaidemoacr.azurecr.io/supai-api-gateway:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 80
+        - containerPort: 3000
           name: http
         env:
         - name: PORT
-          value: "80"
+          value: "3000"
         - name: NODE_ENV
           value: "production"
         - name: FRONTEND_URL
@@ -51,7 +51,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 80
+            port: 3000
           initialDelaySeconds: 10
           periodSeconds: 30
           timeoutSeconds: 5
@@ -59,7 +59,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: 80
+            port: 3000
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 5

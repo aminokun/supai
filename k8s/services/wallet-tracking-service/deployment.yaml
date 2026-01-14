@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: wallet-tracking-service
-        image: supai/wallet-tracking-service:latest
+        image: supaidemoacr.azurecr.io/supai-wallet-tracking:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3003

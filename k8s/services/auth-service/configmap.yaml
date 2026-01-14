@@ -6,6 +6,6 @@ metadata:
 data:
   PORT: "3001"
   NODE_ENV: "production"
-  BETTER_AUTH_URL: "http://localhost/api/auth"
-  TRUSTED_ORIGINS: "http://localhost:3000,http://localhost:3006"
+  BETTER_AUTH_URL: "http://4.165.168.98/api/auth"
+  TRUSTED_ORIGINS: "http://4.165.168.98,http://4.165.168.98:80"
   RABBITMQ_URL: "amqp://rabbitmq_admin:rabbitmqpassword@rabbitmq:5672"

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: supai/user-service:latest
+        image: supaidemoacr.azurecr.io/supai-user:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3007

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: supai/auth-service:latest
+        image: supaidemoacr.azurecr.io/supai-auth:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3001
