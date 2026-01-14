@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: supai
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      # Prometheus self-monitoring
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # API Gateway
+      - job_name: 'api-gateway'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: api-gateway
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:80
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # Auth Service
+      - job_name: 'auth-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: auth-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:3001
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # User Service
+      - job_name: 'user-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: user-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:3007
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # Wallet Tracking Service
+      - job_name: 'wallet-tracking-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: wallet-tracking-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:3003
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # Notification Service
+      - job_name: 'notification-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: notification-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:3005
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # Telegram Bot
+      - job_name: 'telegram-bot'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - supai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: telegram-bot
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: $1:3006
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod

@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-tracking-service
+  namespace: supai
+  labels:
+    app: wallet-tracking-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wallet-tracking-service
+  template:
+    metadata:
+      labels:
+        app: wallet-tracking-service
+    spec:
+      containers:
+      - name: wallet-tracking-service
+        image: supai/wallet-tracking-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3003
+          name: http
+        envFrom:
+        - configMapRef:
+            name: wallet-tracking-service-config
+        - secretRef:
+            name: wallet-tracking-service-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3003
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3003
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      restartPolicy: Always

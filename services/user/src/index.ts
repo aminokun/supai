@@ -1,4 +1,5 @@
 import cors from "cors";
+import promClient from "prom-client";
 import "dotenv/config";
 import express from "express";
 import amqp from "amqplib";
@@ -9,6 +10,27 @@ import { schedulePurgeJob } from "./jobs/purge-deleted-users.js";
 const PORT = process.env.PORT || 3007;
 const prisma = new PrismaClient();
 const app = express();
+
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
 
 // Temporary storage for linking codes (in production, use Redis)
 const linkingCodes = new Map<string, { userId: string; createdAt: Date }>();
@@ -31,6 +53,25 @@ app.use(
   })
 );
 
+// Metrics middleware
+app.use((req: any, res: any, next: any) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+  next();
+});
+
 app.use(express.json());
 
 // Middleware to extract user ID from auth service headers
@@ -41,6 +82,12 @@ const extractUserId = (req: express.Request): string | null => {
 // Health check
 app.get("/health", (req: any, res: any) => {
   res.json({ status: "ok", service: "user-service" });
+});
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req: any, res: any) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // Get user profile by ID (for internal services)

@@ -1,4 +1,5 @@
 import express from 'express';
+import promClient from "prom-client";
 import cors from 'cors';
 import 'dotenv/config';
 
@@ -15,10 +16,50 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3003;
 
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Increase limit for webhook payloads
 app.use(express.urlencoded({ extended: true }));
+
+// Metrics middleware
+app.use((req: any, res: any, next: any) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -27,6 +68,12 @@ app.get('/health', (req, res) => {
     service: 'wallet-tracking-service',
     timestamp: new Date().toISOString()
   });
+});
+
+// Metrics endpoint for Prometheus
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // Internal endpoint: Deactivate user (called by user service during deletion request)

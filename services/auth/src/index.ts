@@ -5,11 +5,33 @@ import express from "express";
 import amqp from "amqplib";
 import { auth } from "./auth.js";
 import { PrismaClient } from "../generated/prisma/index.js";
+import promClient from "prom-client";
 
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 const app = express();
+
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
 
 app.use(express.json());
 app.use(
@@ -18,6 +40,26 @@ app.use(
     credentials: true,
   })
 );
+
+// Metrics middleware
+app.use((req: any, res: any, next: any) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+  next();
+});
+
 app.all("/api/auth/{*any}", toNodeHandler(auth));
 
 app.get("/", (req: any, res: any) => {
@@ -26,6 +68,12 @@ app.get("/", (req: any, res: any) => {
 
 app.get("/health", (req: any, res: any) => {
   res.json({ status: "ok", service: "auth-service" });
+});
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req: any, res: any) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // RabbitMQ connection for USER_DELETED events

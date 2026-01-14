@@ -4,9 +4,35 @@ import cors from "cors";
 import authMiddleware from "./auth-middleware.js";
 import "dotenv/config";
 import { IncomingMessage, ServerResponse } from "http";
+import promClient from "prom-client";
 
 const app = express();
 const PORT = process.env.PORT || 80;
+
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+// Create a Registry to register metrics
+const register = new promClient.Registry();
+
+// Add default metrics (CPU, memory, etc.)
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
 
 // CORS configuration
 app.use(
@@ -22,9 +48,28 @@ app.use(
   })
 );
 
-// Request logging middleware
+// Request logging and metrics middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+
+  // Log request
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+
+  // Track metrics when response finishes
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = (req as any).route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+
   next();
 });
 
@@ -33,6 +78,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", service: "api-gateway" });
+});
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req: Request, res: Response) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // ============================================================

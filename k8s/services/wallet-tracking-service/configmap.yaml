@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-tracking-service-config
+  namespace: supai
+data:
+  PORT: "3003"
+  NODE_ENV: "production"
+  RABBITMQ_URL: "amqp://rabbitmq_admin:rabbitmqpassword@rabbitmq:5672"
