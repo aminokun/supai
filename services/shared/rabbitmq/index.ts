@@ -19,15 +19,12 @@ export async function initializeRabbitMQ(
     password?: string;
   }
 ) {
-  const defaultConfig = {
-    hostname: process.env.RABBITMQ_HOST || 'localhost',
-    port: parseInt(process.env.RABBITMQ_PORT || '5672'),
-    username: process.env.RABBITMQ_USER || 'rabbitmq_admin',
-    password: process.env.RABBITMQ_PASSWORD || 'rabbitmqpassword',
-    vhost: process.env.RABBITMQ_VHOST || '/',
-  };
+  const rabbitmqUrl = process.env.RABBITMQ_URL;
+  if (!rabbitmqUrl) {
+    throw new Error("RABBITMQ_URL environment variable is required");
+  }
 
-  const connection = RabbitMQConnection.getInstance({ ...defaultConfig, ...config });
+  const connection = RabbitMQConnection.getInstance({ url: rabbitmqUrl, ...config });
   await connection.connect();
   await connection.setupDeadLetter();
 

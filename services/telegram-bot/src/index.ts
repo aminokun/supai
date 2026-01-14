@@ -1,4 +1,5 @@
 import { Telegraf, Context } from 'telegraf';
+import promClient from "prom-client";
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
@@ -30,18 +31,64 @@ export interface BotContext extends Context {
 
 // Initialize Express app for health checks
 const app = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3006;
+
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+const register = new promClient.Registry();
+promClient.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
 
 app.use(cors());
 app.use(express.json());
 
+// Metrics middleware
+app.use((req: any, res: any, next: any) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+  next();
+});
+
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'telegram-bot',
     timestamp: new Date().toISOString()
   });
+});
+
+// Metrics endpoint for Prometheus
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // Initialize Telegram bot
@@ -84,8 +131,8 @@ bot.command('status', statusCommand);
 
 // Handle text messages (for link code input)
 bot.on('text', async (ctx) => {
-  const message = ctx.message.text;
-  const chatId = ctx.chat.id.toString();
+  const message = 'text' in ctx.message ? ctx.message.text : '';
+  const chatId = ctx.chat!.id.toString();
 
   // Check if user is in linking process
   const linkingState = sessionManager.getLinkingState(chatId);
@@ -97,7 +144,8 @@ bot.on('text', async (ctx) => {
 
       // Validate code format (6 digits)
       if (!/^\d{6}$/.test(code)) {
-        return ctx.reply('Invalid code format. Please enter the 6-digit code from your account settings.');
+        void ctx.reply('Invalid code format. Please enter the 6-digit code from your account settings.');
+        return;
       }
 
       // Verify code with user service
@@ -141,15 +189,16 @@ bot.on('text', async (ctx) => {
 });
 
 // Handle callback queries (inline keyboard buttons)
-bot.on('callback_query', async (ctx) => {
-  const data = ctx.callbackQuery.data;
+bot.on('callback_query', async (ctx): Promise<void> => {
+  const data = ctx.callbackQuery && 'data' in ctx.callbackQuery ? ctx.callbackQuery.data : undefined;
 
   if (data?.startsWith('untrack:')) {
     const address = data.replace('untrack:', '');
 
     try {
       if (!ctx.session?.userId) {
-        return ctx.answerCbQuery('Please link your account first');
+        void ctx.answerCbQuery('Please link your account first');
+        return;
       }
 
       await apiClient.removeWallet(ctx.session.userId, address);
@@ -169,7 +218,7 @@ bot.on('callback_query', async (ctx) => {
   }
 
   // Always acknowledge callback query if not already done
-  if (!ctx.callbackQuery.answered) {
+  if (!('answered' in ctx.callbackQuery && ctx.callbackQuery.answered)) {
     await ctx.answerCbQuery();
   }
 });

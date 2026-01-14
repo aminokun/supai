@@ -103,6 +103,14 @@ export class EventPublisher {
     });
   }
 
+  public async publishUserDeleted(userId: string, reason?: string): Promise<void> {
+    await this.publish(EventType.USER_DELETED, {
+      userId,
+      reason,
+      deletedAt: new Date().toISOString(),
+    });
+  }
+
   public async publishWalletAdded(
     userId: string,
     walletAddress: string,

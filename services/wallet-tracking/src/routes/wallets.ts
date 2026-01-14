@@ -94,7 +94,7 @@ router.post('/wallets/bulk', async (req: Request, res: Response) => {
 
     // Publish events for successfully added wallets
     for (const wallet of result.added) {
-      await rabbitmqService.publishWalletAdded(userId, wallet.address, wallet.name);
+      await rabbitmqService.publishWalletAdded(userId, wallet.address as string, wallet.name as string);
     }
 
     res.status(201).json(result);
@@ -115,7 +115,11 @@ router.put('/wallets/:address', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { address } = req.params;
+    const address = req.params['address'];
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
+
     const { name, groupName } = req.body;
 
     const wallet = await walletManager.updateWallet(userId, address, {
@@ -141,7 +145,10 @@ router.delete('/wallets/:address', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { address } = req.params;
+    const address = req.params['address'];
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
 
     await walletManager.removeWallet(userId, address);
 
@@ -166,7 +173,10 @@ router.post('/wallets/:address/toggle', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { address } = req.params;
+    const address = req.params['address'];
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
 
     const wallet = await walletManager.toggleWalletStatus(userId, address);
     res.json(wallet);
@@ -206,7 +216,10 @@ router.get('/groups/:groupName', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { groupName } = req.params;
+    const groupName = req.params['groupName'];
+    if (!groupName) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
 
     const wallets = await walletManager.getWalletsByGroup(userId, groupName);
     res.json(wallets);

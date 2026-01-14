@@ -1,21 +1,22 @@
 import { BotContext } from '../index.js';
 import { apiClient } from '../services/api-client.js';
 
-export async function trackCommand(ctx: BotContext) {
+export async function trackCommand(ctx: BotContext): Promise<void> {
   // Check if linked
   if (!ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Please link your account first using /link command.'
     );
+    return;
   }
 
   // Parse command arguments
-  const commandText = ctx.message?.text || '';
-  const parts = commandText.split(' ').filter(p => p.length > 0);
+  const commandText = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
+  const parts = commandText.split(' ').filter((p: string) => p.length > 0);
 
   // Check if arguments provided
   if (parts.length < 3) {
-    return ctx.reply(
+    void ctx.reply(
       `📝 <b>Track a Wallet</b>\n\n` +
       `<b>Usage:</b>\n` +
       `<code>/track &lt;address&gt; &lt;name&gt; [group]</code>\n\n` +
@@ -29,6 +30,7 @@ export async function trackCommand(ctx: BotContext) {
       `Groups help organize your tracked wallets.`,
       { parse_mode: 'HTML' }
     );
+    return;
   }
 
   const address = parts[1];
@@ -37,19 +39,21 @@ export async function trackCommand(ctx: BotContext) {
 
   // Validate Ethereum address format
   if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    return ctx.reply(
+    void ctx.reply(
       `❌ Invalid Ethereum address format.\n\n` +
       `Please provide a valid address starting with 0x followed by 40 hexadecimal characters.\n\n` +
       `Example: <code>0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0</code>`,
       { parse_mode: 'HTML' }
     );
+    return;
   }
 
   // Validate name length
   if (name.length > 50) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Wallet name is too long. Please use a name under 50 characters.'
     );
+    return;
   }
 
   try {

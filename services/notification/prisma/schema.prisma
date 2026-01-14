@@ -44,10 +44,14 @@ model NotificationLog {
   sentAt         DateTime?
   createdAt      DateTime  @default(now())
 
+  // GDPR Anonymization Fields
+  anonymizedAt DateTime? // When user data was anonymized
+
   @@index([userId])
   @@index([telegramChatId])
   @@index([status])
   @@index([createdAt])
+  @@index([anonymizedAt])
   @@map("notification_logs")
 }
 

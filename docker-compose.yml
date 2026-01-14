@@ -1,132 +1,11 @@
-version: "3.8"
 services:
-  # Databases
-  postgres-auth:
-    image: postgres:16-alpine
-    container_name: postgres-auth
-    environment:
-      POSTGRES_USER: ${AUTH_DB_USER}
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
-      POSTGRES_DB: ${AUTH_DB_NAME}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-auth-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-notification:
-    image: postgres:16-alpine
-    container_name: postgres-notification
-    environment:
-      POSTGRES_USER: ${NOTIFICATION_DB_USER}
-      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
-      POSTGRES_DB: ${NOTIFICATION_DB_NAME}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres-notification-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATION_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-asset-price:
-    image: postgres:16-alpine
-    container_name: postgres-asset-price
-    environment:
-      POSTGRES_USER: ${ASSET_PRICE_DB_USER}
-      POSTGRES_PASSWORD: ${ASSET_PRICE_DB_PASSWORD}
-      POSTGRES_DB: ${ASSET_PRICE_DB_NAME}
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres-asset-price-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${ASSET_PRICE_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-wallet-tracking:
-    image: postgres:16-alpine
-    container_name: postgres-wallet-tracking
-    environment:
-      POSTGRES_USER: ${WALLET_TRACKING_DB_USER}
-      POSTGRES_PASSWORD: ${WALLET_TRACKING_DB_PASSWORD}
-      POSTGRES_DB: ${WALLET_TRACKING_DB_NAME}
-    ports:
-      - "5435:5432"
-    volumes:
-      - postgres-wallet-tracking-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${WALLET_TRACKING_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-portfolio:
-    image: postgres:16-alpine
-    container_name: postgres-portfolio
-    environment:
-      POSTGRES_USER: ${PORTFOLIO_DB_USER}
-      POSTGRES_PASSWORD: ${PORTFOLIO_DB_PASSWORD}
-      POSTGRES_DB: ${PORTFOLIO_DB_NAME}
-    ports:
-      - "5436:5432"
-    volumes:
-      - postgres-portfolio-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PORTFOLIO_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-user:
-    image: postgres:16-alpine
-    container_name: postgres-user
-    environment:
-      POSTGRES_USER: ${USER_DB_USER}
-      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
-      POSTGRES_DB: ${USER_DB_NAME}
-    ports:
-      - "5437:5432"
-    volumes:
-      - postgres-user-data:/var/lib/postgresql/data
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+  # Message Queue & Cache (Databases moved to Neon cloud)
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: supai-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: rabbitmq_admin
+      RABBITMQ_DEFAULT_PASS: rabbitmqpassword
     ports:
       - "5672:5672" # AMQP port (for services)
       - "15672:15672" # Management UI
@@ -139,6 +18,22 @@ services:
       test: rabbitmq-diagnostics -q ping
       interval: 30s
       timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: supai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - supai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
       retries: 5
 
   # Microservices
@@ -154,6 +49,7 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: http://localhost/api/auth
       TRUSTED_ORIGINS: http://localhost:3000,http://localhost:3006
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
     ports:
       - "3001:3001"
     networks:
@@ -187,7 +83,6 @@ services:
     ports:
       - "3007:3007"
     depends_on:
-      # Removed dependency on postgres-user since we're using Neon cloud database
       rabbitmq:
         condition: service_healthy
     networks:
@@ -208,40 +103,38 @@ services:
       retries: 3
       start_period: 10s
 
-  asset-price:
-    build:
-      context: ./services/asset-price
-      dockerfile: Dockerfile
-    container_name: supai-asset-price-service
-    environment:
-      PORT: 3002
-      NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${ASSET_PRICE_DB_USER}:${ASSET_PRICE_DB_PASSWORD}@postgres-asset-price:5432/${ASSET_PRICE_DB_NAME}?schema=public
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
-    ports:
-      - "3002:3002"
-    depends_on:
-      postgres-asset-price:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3002/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # asset-price:
+  #   build:
+  #     context: ./services/asset-price
+  #     dockerfile: Dockerfile
+  #   container_name: supai-asset-price-service
+  #   environment:
+  #     PORT: 3002
+  #     NODE_ENV: ${NODE_ENV:-development}
+  #     DATABASE_URL: ${ASSET_PRICE_DATABASE_URL}
+  #     RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+  #   ports:
+  #     - "3002:3002"
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - supai-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "wget",
+  #         "--quiet",
+  #         "--tries=1",
+  #         "--spider",
+  #         "http://localhost:3002/health",
+  #       ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
 
   wallet-tracking:
     build:
@@ -260,7 +153,6 @@ services:
     ports:
       - "3003:3003"
     depends_on:
-      # Removed dependency on postgres-wallet-tracking since we're using Neon
       rabbitmq:
         condition: service_healthy
     networks:
@@ -281,40 +173,38 @@ services:
       retries: 3
       start_period: 10s
 
-  portfolio:
-    build:
-      context: ./services/portfolio
-      dockerfile: Dockerfile
-    container_name: supai-portfolio-service
-    environment:
-      PORT: 3004
-      NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${PORTFOLIO_DB_USER}:${PORTFOLIO_DB_PASSWORD}@postgres-portfolio:5432/${PORTFOLIO_DB_NAME}?schema=public
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
-    ports:
-      - "3004:3004"
-    depends_on:
-      postgres-portfolio:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - supai-network
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3004/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # portfolio:
+  #   build:
+  #     context: ./services/portfolio
+  #     dockerfile: Dockerfile
+  #   container_name: supai-portfolio-service
+  #   environment:
+  #     PORT: 3004
+  #     NODE_ENV: ${NODE_ENV:-development}
+  #     DATABASE_URL: ${PORTFOLIO_DATABASE_URL}
+  #     RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+  #   ports:
+  #     - "3004:3004"
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - supai-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD",
+  #         "wget",
+  #         "--quiet",
+  #         "--tries=1",
+  #         "--spider",
+  #         "http://localhost:3004/health",
+  #       ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
 
   notification:
     build:
@@ -331,7 +221,6 @@ services:
     ports:
       - "3005:3005"
     depends_on:
-      # Removed dependency on postgres-notification since we're using Neon
       rabbitmq:
         condition: service_healthy
     networks:
@@ -365,32 +254,19 @@ services:
       TELEGRAM_BOT_URL: http://localhost:3006
       AUTH_SERVICE_URL: http://auth:3001
       USER_SERVICE_URL: http://user:3007
-      ASSET_PRICE_SERVICE_URL: http://asset-price:3002
       WALLET_TRACKING_SERVICE_URL: http://wallet-tracking:3003
-      PORTFOLIO_SERVICE_URL: http://portfolio:3004
       NOTIFICATION_SERVICE_URL: http://notification:3005
+      REDIS_URL: redis://redis:6379
+      # ASSET_PRICE_SERVICE_URL: http://asset-price:3002
+      # PORTFOLIO_SERVICE_URL: http://portfolio:3004
     ports:
       - "80:80"
     depends_on:
-      auth:
-        condition: service_healthy
+      - auth
+      - redis
     networks:
       - supai-network
     restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--quiet",
-          "--tries=1",
-          "--spider",
-          "http://localhost/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   # Frontend Services
   frontend:
@@ -400,15 +276,18 @@ services:
     container_name: supai-nextjs-frontend
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      NEXT_PUBLIC_API_URL: http://localhost
+      NEXT_PUBLIC_API_URL: http://localhost/api
       NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost/api/auth
+      # Server-side URL for Docker containers to access host
+      API_URL_FOR_SERVER_SIDE: http://host.docker.internal/api
     ports:
       - "3000:3000"
     depends_on:
-      api-gateway:
-        condition: service_healthy
+      - api-gateway
     networks:
       - supai-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   telegram-bot:
@@ -453,14 +332,47 @@ services:
       retries: 3
       start_period: 10s
 
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: supai-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - supai-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: supai-grafana
+    ports:
+      - "3010:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - supai-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
-  postgres-auth-data:
-  postgres-notification-data:
-  postgres-asset-price-data:
-  postgres-wallet-tracking-data:
-  postgres-portfolio-data:
-  postgres-user-data:
   rabbitmq-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   supai-network:

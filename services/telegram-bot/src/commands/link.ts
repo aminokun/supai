@@ -6,14 +6,15 @@ export async function linkCommand(ctx: BotContext): Promise<void> {
 
   // Check if already linked
   if (ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '✅ Your Telegram is already linked to a Supai account.\n\n' +
       'Use /unlink if you want to disconnect and link a different account.'
     );
+    return;
   }
 
   // Check for code in command (e.g., /link 123456)
-  const commandText = ctx.message?.text || '';
+  const commandText = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
   const parts = commandText.split(' ');
 
   if (parts.length > 1) {
@@ -22,10 +23,11 @@ export async function linkCommand(ctx: BotContext): Promise<void> {
 
     // Validate code format
     if (!/^\d{6}$/.test(code)) {
-      return ctx.reply(
+      void ctx.reply(
         '❌ Invalid code format. Please enter a 6-digit code.\n\n' +
         'Example: /link 123456'
       );
+      return;
     }
 
     // Process code directly

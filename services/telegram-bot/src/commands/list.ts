@@ -1,13 +1,13 @@
-import { Markup } from 'telegraf';
 import { BotContext } from '../index.js';
 import { apiClient } from '../services/api-client.js';
 
-export async function listCommand(ctx: BotContext) {
+export async function listCommand(ctx: BotContext): Promise<void> {
   // Check if linked
   if (!ctx.session?.isLinked) {
-    return ctx.reply(
+    void ctx.reply(
       '❌ Please link your account first using /link command.'
     );
+    return;
   }
 
   try {
@@ -15,7 +15,7 @@ export async function listCommand(ctx: BotContext) {
     const wallets = await apiClient.getUserWallets(ctx.session.userId!);
 
     if (wallets.length === 0) {
-      return ctx.reply(
+      void ctx.reply(
         `📋 <b>Your Tracked Wallets</b>\n\n` +
         `You haven't added any wallets yet.\n\n` +
         `Use /track command to start tracking wallets:\n` +

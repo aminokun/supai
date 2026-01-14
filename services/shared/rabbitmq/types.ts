@@ -71,6 +71,15 @@ export interface UserTelegramUnlinkedEvent extends BaseEvent {
   };
 }
 
+export interface UserDeletedEvent extends BaseEvent {
+  type: EventType.USER_DELETED;
+  data: {
+    userId: string;
+    reason?: string;
+    deletedAt: string;
+  };
+}
+
 // Wallet events
 export interface WalletAddedEvent extends BaseEvent {
   type: EventType.WALLET_ADDED;
@@ -95,6 +104,34 @@ export interface WalletTransactionDetectedEvent extends BaseEvent {
     tokenAddress?: string;
     tokenSymbol?: string;
     transactionType: 'incoming' | 'outgoing';
+    // User telegram data (included to avoid HTTP calls from notification service)
+    telegramChatId?: string;
+    telegramUsername?: string;
+  };
+}
+
+// Affected user with telegram data (for transaction notifications)
+export interface AffectedUser {
+  userId: string;
+  telegramChatId?: string;
+  telegramUsername?: string;
+}
+
+// Transaction event with multiple affected users
+export interface TransactionWithUsersEvent extends BaseEvent {
+  type: EventType.WALLET_TRANSACTION_DETECTED;
+  data: {
+    transaction: {
+      txHash: string;
+      fromAddress: string;
+      toAddress: string;
+      value: string;
+      asset?: string;
+      category?: string;
+      blockNumber?: number;
+      timestamp?: string;
+    };
+    affectedUsers: AffectedUser[];
   };
 }
 
@@ -128,10 +165,12 @@ export interface NotificationRequestedEvent extends BaseEvent {
 export type DomainEvent =
   | UserCreatedEvent
   | UserUpdatedEvent
+  | UserDeletedEvent
   | UserTelegramLinkedEvent
   | UserTelegramUnlinkedEvent
   | WalletAddedEvent
   | WalletTransactionDetectedEvent
+  | TransactionWithUsersEvent
   | PriceAlertTriggeredEvent
   | NotificationRequestedEvent;
 

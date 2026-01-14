@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'supai'
+    environment: 'development'
+
+scrape_configs:
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:80']
+    metrics_path: '/metrics'
+
+  # Auth Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth:3001']
+    metrics_path: '/metrics'
+
+  # User Service
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user:3007']
+    metrics_path: '/metrics'
+
+  # Wallet Tracking Service
+  - job_name: 'wallet-tracking-service'
+    static_configs:
+      - targets: ['wallet-tracking:3003']
+    metrics_path: '/metrics'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification:3005']
+    metrics_path: '/metrics'
+
+  # Telegram Bot Service
+  - job_name: 'telegram-bot'
+    static_configs:
+      - targets: ['telegram-bot:3006']
+    metrics_path: '/metrics'
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

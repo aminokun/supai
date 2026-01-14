@@ -1,0 +1,72 @@
+# Development override - enables hot reload for all services
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  auth:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/auth/src:/app/src
+      - ./services/auth/prisma:/app/prisma
+    command: npm run dev
+
+  user:
+    build:
+      context: ./services/user
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/user/src:/app/src
+      - ./services/user/prisma:/app/prisma
+    command: npm run dev
+
+  wallet-tracking:
+    build:
+      context: ./services/wallet-tracking
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/wallet-tracking/src:/app/src
+      - ./services/wallet-tracking/prisma:/app/prisma
+    command: npm run dev
+
+  notification:
+    build:
+      context: ./services/notification
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/notification/src:/app/src
+      - ./services/notification/prisma:/app/prisma
+    command: npm run dev
+
+  telegram-bot:
+    build:
+      context: ./services/telegram-bot
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./services/telegram-bot/src:/app/src
+    command: npm run dev
+
+  api-gateway:
+    build:
+      context: ./traefik
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./traefik/src:/app/src
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend/supai
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/supai/app:/app/app
+      - ./frontend/supai/components:/app/components
+      - ./frontend/supai/lib:/app/lib
+      - ./frontend/supai/public:/app/public
+    command: npm run dev

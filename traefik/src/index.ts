@@ -1,12 +1,38 @@
 import express, { Request, Response, NextFunction } from "express";
 import httpProxy from "http-proxy";
 import cors from "cors";
-import authMiddleware from "./auth-middleware";
+import authMiddleware from "./auth-middleware.js";
 import "dotenv/config";
 import { IncomingMessage, ServerResponse } from "http";
+import promClient from "prom-client";
 
 const app = express();
 const PORT = process.env.PORT || 80;
+
+// ============================================================
+// Prometheus Metrics
+// ============================================================
+
+// Create a Registry to register metrics
+const register = new promClient.Registry();
+
+// Add default metrics (CPU, memory, etc.)
+promClient.collectDefaultMetrics({ register });
+
+// Custom metrics
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['route', 'code', 'method'],
+  registers: [register]
+});
 
 // CORS configuration
 app.use(
@@ -17,23 +43,47 @@ app.use(
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id"],
     exposedHeaders: ["X-Total-Count", "X-Page-Number"],
   })
 );
 
-// Request logging middleware
+// Request logging and metrics middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+
+  // Log request
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+
+  // Track metrics when response finishes
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = (req as any).route?.path || req.path;
+    const code = res.statusCode.toString();
+
+    httpRequestDuration
+      .labels(route, code, req.method)
+      .observe(duration);
+
+    httpRequestsTotal
+      .labels(route, code, req.method)
+      .inc();
+  });
+
   next();
 });
 
-// Parse JSON bodies
-app.use(express.json());
+// NOTE: Do NOT use express.json() here - it consumes the body before proxying
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "ok", service: "api-gateway" });
+});
+
+// Metrics endpoint for Prometheus
+app.get("/metrics", async (req: Request, res: Response) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
 });
 
 // ============================================================
@@ -122,7 +172,10 @@ userProxy.on("error", (error, req, res) =>
 // ============================================================
 
 // Auth Service (no auth required for signup/signin)
+// We need to rewrite the URL since Express strips the matched prefix
 app.use("/api/auth", (req: Request, res: Response, next: NextFunction) => {
+  // Preserve the full URL by setting req.url to the original URL
+  req.url = req.originalUrl;
   authProxy.web(req, res);
 });
 
@@ -137,9 +190,11 @@ app.use(
 
 // Wallet Tracking Service (requires auth, except for webhooks)
 app.use(
-  "/wallets",
+  "/api/wallet-tracking",
   authMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
+    // Preserve the full URL since wallet service expects /api/wallet-tracking/... paths
+    req.url = req.originalUrl;
     walletTrackingProxy.web(req, res);
   }
 );
@@ -149,6 +204,7 @@ app.use(
   "/webhooks/alchemy",
   (req: Request, res: Response, next: NextFunction) => {
     // TODO: Add IP whitelist check for Alchemy
+    req.url = req.originalUrl;
     walletTrackingProxy.web(req, res);
   }
 );
@@ -176,6 +232,8 @@ app.use(
   "/api/users",
   authMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
+    // Preserve the full URL since user service expects /api/users/... paths
+    req.url = req.originalUrl;
     userProxy.web(req, res);
   }
 );

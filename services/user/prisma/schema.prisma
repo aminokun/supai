@@ -26,5 +26,10 @@ model UserProfile {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // GDPR Anonymization Fields
+  anonymizedAt DateTime? // When PII was anonymized
+  isAnonymized Boolean   @default(false)
+
+  @@index([isAnonymized])
   @@map("user_profile")
 }

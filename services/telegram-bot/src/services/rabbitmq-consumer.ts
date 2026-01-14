@@ -1,4 +1,5 @@
 import * as amqplib from 'amqplib';
+import type { Channel, ChannelModel } from 'amqplib';
 import { Telegraf } from 'telegraf';
 import { BotContext } from '../index.js';
 
@@ -29,12 +30,16 @@ interface TransactionEvent {
 }
 
 export class RabbitMQConsumer {
-  private connection: amqplib.Connection | null = null;
-  private channel: amqplib.Channel | null = null;
+  private connection: ChannelModel | null = null;
+  private channel: Channel | null = null;
   private url: string;
 
   constructor() {
-    this.url = process.env.RABBITMQ_URL || 'amqp://rabbitmq_admin:rabbitmqpassword@localhost:5672';
+    const url = process.env.RABBITMQ_URL;
+    if (!url) {
+      throw new Error("RABBITMQ_URL environment variable is required");
+    }
+    this.url = url;
   }
 
   async connect(): Promise<void> {
